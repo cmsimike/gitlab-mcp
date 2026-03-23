@@ -515,6 +515,17 @@ export class GitLabClient {
     );
   }
 
+  getMergeRequestConflicts(
+    projectId: string,
+    mergeRequestIid: string,
+    options: GitLabRequestOptions = {}
+  ): Promise<unknown> {
+    return this.get(
+      `/projects/${encode(projectId)}/merge_requests/${encode(mergeRequestIid)}/conflicts`,
+      options
+    );
+  }
+
   listMergeRequestDiscussions(
     projectId: string,
     mergeRequestIid: string,
@@ -1255,6 +1266,7 @@ export class GitLabClient {
     payload: {
       ref: string;
       variables?: Array<{ key: string; value: string; variable_type?: "env_var" | "file" }>;
+      inputs?: Record<string, string>;
     },
     options: GitLabRequestOptions = {}
   ): Promise<unknown> {

@@ -56,6 +56,10 @@ const optionalRecord = z.preprocess(
   (value) => (value === null ? undefined : value),
   z.record(z.string(), z.unknown()).optional()
 );
+const optionalStringRecord = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.record(z.string(), z.string()).optional()
+);
 
 const paginationShape = {
   page: optionalNumber,
@@ -974,6 +978,21 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       },
       handler: async (args, context) =>
         context.gitlab.getMergeRequestApprovalState(
+          resolveProjectId(args, context, true),
+          getString(args, "merge_request_iid")
+        )
+    },
+    {
+      name: "gitlab_get_merge_request_conflicts",
+      title: "Get Merge Request Conflicts",
+      description: "Get conflict details for MR.",
+      mutating: false,
+      inputSchema: {
+        project_id: z.string().optional(),
+        merge_request_iid: z.string().min(1)
+      },
+      handler: async (args, context) =>
+        context.gitlab.getMergeRequestConflicts(
           resolveProjectId(args, context, true),
           getString(args, "merge_request_iid")
         )
@@ -2095,6 +2114,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       inputSchema: {
         project_id: z.string().optional(),
         ref: z.string().min(1),
+        inputs: optionalStringRecord,
         variables: z
           .array(
             z.object({
@@ -2108,11 +2128,14 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       handler: async (args, context) =>
         context.gitlab.createPipeline(resolveProjectId(args, context, true), {
           ref: getString(args, "ref"),
-          variables: getArray(args, "variables") as Array<{
-            key: string;
-            value: string;
-            variable_type?: "env_var" | "file";
-          }>
+          inputs: getOptionalStringRecord(args, "inputs"),
+          variables: getOptionalArray(args, "variables") as
+            | Array<{
+                key: string;
+                value: string;
+                variable_type?: "env_var" | "file";
+              }>
+            | undefined
         })
     },
     {
@@ -3275,8 +3298,12 @@ function getOptionalNumber(args: ToolArgs, key: string): number | undefined {
   return value;
 }
 
-function getArray(args: ToolArgs, key: string): unknown[] {
+function getOptionalArray(args: ToolArgs, key: string): unknown[] | undefined {
   const value = args[key];
+  if (value === undefined) {
+    return undefined;
+  }
+
   if (!Array.isArray(value)) {
     throw new Error(`'${key}' must be array`);
   }
@@ -3308,6 +3335,21 @@ function getOptionalRecord(args: ToolArgs, key: string): Record<string, unknown>
   }
 
   return value as Record<string, unknown>;
+}
+
+function getOptionalStringRecord(args: ToolArgs, key: string): Record<string, string> | undefined {
+  const value = getOptionalRecord(args, key);
+  if (!value) {
+    return undefined;
+  }
+
+  for (const [entryKey, entryValue] of Object.entries(value)) {
+    if (typeof entryValue !== "string") {
+      throw new Error(`'${key}.${entryKey}' must be a string`);
+    }
+  }
+
+  return value as Record<string, string>;
 }
 
 function requireArrayValue<T>(items: T[], index: number, errorMessage: string): T {

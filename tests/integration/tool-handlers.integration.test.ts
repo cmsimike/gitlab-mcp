@@ -302,6 +302,36 @@ describe("Tool handler: gitlab_get_merge_request", () => {
 });
 
 /* ------------------------------------------------------------------ */
+/*  gitlab_get_merge_request_conflicts                                 */
+/* ------------------------------------------------------------------ */
+
+describe("Tool handler: gitlab_get_merge_request_conflicts", () => {
+  it("passes project_id + merge_request_iid to getMergeRequestConflicts()", async () => {
+    const getMergeRequestConflicts = vi.fn().mockResolvedValue({
+      merge_request: { iid: 11 },
+      conflict_files: []
+    });
+
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ gitlabStub: { getMergeRequestConflicts } })
+    );
+
+    try {
+      const result = await client.callTool({
+        name: "gitlab_get_merge_request_conflicts",
+        arguments: { project_id: "group/project", merge_request_iid: "11" }
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(getMergeRequestConflicts).toHaveBeenCalledWith("group/project", "11");
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /*  gitlab_merge_merge_request                                         */
 /* ------------------------------------------------------------------ */
 
@@ -396,6 +426,77 @@ describe("Tool handler: gitlab_list_issues", () => {
           labels: "bug",
           search: "crash"
         })
+      });
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  gitlab_create_pipeline                                             */
+/* ------------------------------------------------------------------ */
+
+describe("Tool handler: gitlab_create_pipeline", () => {
+  it("passes variables and inputs to createPipeline()", async () => {
+    const createPipeline = vi.fn().mockResolvedValue({
+      id: 100,
+      status: "pending"
+    });
+
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ gitlabStub: { createPipeline } })
+    );
+
+    try {
+      const result = await client.callTool({
+        name: "gitlab_create_pipeline",
+        arguments: {
+          project_id: "group/project",
+          ref: "main",
+          inputs: { environment: "production" },
+          variables: [{ key: "DEPLOY", value: "true" }]
+        }
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(createPipeline).toHaveBeenCalledWith("group/project", {
+        ref: "main",
+        inputs: { environment: "production" },
+        variables: [{ key: "DEPLOY", value: "true" }]
+      });
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+
+  it("allows createPipeline() with inputs only", async () => {
+    const createPipeline = vi.fn().mockResolvedValue({
+      id: 101,
+      status: "pending"
+    });
+
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ gitlabStub: { createPipeline } })
+    );
+
+    try {
+      const result = await client.callTool({
+        name: "gitlab_create_pipeline",
+        arguments: {
+          project_id: "group/project",
+          ref: "release",
+          inputs: { environment: "staging" }
+        }
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(createPipeline).toHaveBeenCalledWith("group/project", {
+        ref: "release",
+        inputs: { environment: "staging" },
+        variables: undefined
       });
     } finally {
       await clientTransport.close();

@@ -76,6 +76,7 @@ describe("MCP Server Integration (InMemoryTransport)", () => {
       expect(names).toContain("gitlab_list_projects");
       expect(names).toContain("gitlab_get_file_contents");
       expect(names).toContain("gitlab_create_merge_request");
+      expect(names).toContain("gitlab_get_merge_request_conflicts");
       expect(names).toContain("gitlab_list_issues");
       expect(names).toContain("gitlab_list_deployments");
       expect(names).toContain("gitlab_list_job_artifacts");

@@ -752,6 +752,37 @@ describe("GitLabClient", () => {
       expect(body.variables).toEqual([{ key: "ENV", value: "production" }]);
     });
 
+    it("creates pipeline with spec inputs", async () => {
+      fetchMock.mockResolvedValue(jsonResponse({ id: 2 }));
+
+      const client = new GitLabClient("https://gitlab.example.com", "token");
+      await client.createPipeline("proj", {
+        ref: "release",
+        inputs: {
+          environment: "production",
+          region: "cn"
+        }
+      });
+
+      const [, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit];
+      const body = JSON.parse(init.body as string);
+      expect(body.ref).toBe("release");
+      expect(body.inputs).toEqual({
+        environment: "production",
+        region: "cn"
+      });
+    });
+
+    it("gets merge request conflicts", async () => {
+      fetchMock.mockResolvedValue(jsonResponse({ conflict_files: [] }));
+
+      const client = new GitLabClient("https://gitlab.example.com", "token");
+      await client.getMergeRequestConflicts("proj", "123");
+
+      const [requestUrl] = fetchMock.mock.calls[0] as [URL | string];
+      expect(String(requestUrl)).toContain("/projects/proj/merge_requests/123/conflicts");
+    });
+
     it("lists deployments with query parameters", async () => {
       fetchMock.mockResolvedValue(jsonResponse([]));
 
