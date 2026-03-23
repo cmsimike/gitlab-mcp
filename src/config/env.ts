@@ -11,6 +11,14 @@ const DEFAULT_SERVER_VERSION = resolveDefaultServerVersion();
 
 const responseModeSchema = z.enum(["json", "compact-json", "yaml"]);
 const errorDetailModeSchema = z.enum(["safe", "full"]);
+const optionalNonEmptyString = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}, z.string().optional());
 
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined) {
@@ -43,7 +51,7 @@ const envSchema = z.object({
   GITLAB_OAUTH_CLIENT_SECRET: z.string().optional(),
   GITLAB_OAUTH_GITLAB_URL: z.string().optional(),
   GITLAB_OAUTH_REDIRECT_URI: z.string().url().optional(),
-  GITLAB_OAUTH_SCOPES: z.string().default("api"),
+  GITLAB_OAUTH_SCOPES: optionalNonEmptyString,
   GITLAB_OAUTH_TOKEN_PATH: z.string().optional(),
   GITLAB_OAUTH_AUTO_OPEN_BROWSER: z.enum(["true", "false"]).default("true"),
   GITLAB_READ_ONLY_MODE: z

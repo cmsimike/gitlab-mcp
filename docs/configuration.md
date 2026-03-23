@@ -43,16 +43,16 @@ The client will normalize each entry and rotate across them for load distributio
 
 ### OAuth 2.0 PKCE
 
-| Variable                         | Type         | Default                          | Description                                                                    |
-| -------------------------------- | ------------ | -------------------------------- | ------------------------------------------------------------------------------ |
-| `GITLAB_USE_OAUTH`               | boolean      | `false`                          | Enable OAuth PKCE flow.                                                        |
-| `GITLAB_OAUTH_CLIENT_ID`         | string       | —                                | **Required** when OAuth is enabled. Application ID from GitLab OAuth settings. |
-| `GITLAB_OAUTH_CLIENT_SECRET`     | string       | —                                | Optional. Required only for confidential OAuth applications.                   |
-| `GITLAB_OAUTH_GITLAB_URL`        | string       | derived from `GITLAB_API_URL`    | GitLab base URL for OAuth endpoints (e.g. `https://gitlab.com`).               |
-| `GITLAB_OAUTH_REDIRECT_URI`      | string (URL) | `http://127.0.0.1:8765/callback` | Local callback URL for the OAuth flow.                                         |
-| `GITLAB_OAUTH_SCOPES`            | string       | `api`                            | Space or comma-separated OAuth scopes.                                         |
-| `GITLAB_OAUTH_TOKEN_PATH`        | string       | `~/.gitlab-mcp-oauth-token.json` | File path for persisting OAuth tokens. Stored with `chmod 600`.                |
-| `GITLAB_OAUTH_AUTO_OPEN_BROWSER` | boolean      | `true`                           | Automatically open the browser for authorization.                              |
+| Variable                         | Type         | Default                              | Description                                                                                                                              |
+| -------------------------------- | ------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITLAB_USE_OAUTH`               | boolean      | `false`                              | Enable OAuth PKCE flow.                                                                                                                  |
+| `GITLAB_OAUTH_CLIENT_ID`         | string       | —                                    | **Required** when OAuth is enabled. Application ID from GitLab OAuth settings.                                                           |
+| `GITLAB_OAUTH_CLIENT_SECRET`     | string       | —                                    | Optional. Required only for confidential OAuth applications.                                                                             |
+| `GITLAB_OAUTH_GITLAB_URL`        | string       | derived from `GITLAB_API_URL`        | GitLab base URL for OAuth endpoints (e.g. `https://gitlab.com`).                                                                         |
+| `GITLAB_OAUTH_REDIRECT_URI`      | string (URL) | `http://127.0.0.1:8765/callback`     | Local callback URL for the OAuth flow.                                                                                                   |
+| `GITLAB_OAUTH_SCOPES`            | string       | `api` (`read_api` in read-only mode) | Space or comma-separated OAuth scopes. If omitted, gitlab-mcp defaults to `read_api` when `GITLAB_READ_ONLY_MODE=true`, otherwise `api`. |
+| `GITLAB_OAUTH_TOKEN_PATH`        | string       | `~/.gitlab-mcp-oauth-token.json`     | File path for persisting OAuth tokens. Stored with `chmod 600`.                                                                          |
+| `GITLAB_OAUTH_AUTO_OPEN_BROWSER` | boolean      | `true`                               | Automatically open the browser for authorization.                                                                                        |
 
 ### External Token Script
 

@@ -11,6 +11,7 @@ import { Cookie, CookieJar } from "tough-cookie";
 import type { AppEnv } from "../config/env.js";
 import type { GitLabAuthHeader } from "../types/auth.js";
 import type { GitLabBeforeRequestContext, GitLabBeforeRequestResult } from "./gitlab-client.js";
+import { resolveOauthScopes } from "./oauth-scopes.js";
 import { deriveGitLabBaseUrl, GitLabOAuthManager } from "./oauth.js";
 
 const execAsync = promisify(execCb);
@@ -57,7 +58,7 @@ export class GitLabRequestRuntime {
           clientSecret: env.GITLAB_OAUTH_CLIENT_SECRET,
           gitlabUrl: env.GITLAB_OAUTH_GITLAB_URL || deriveGitLabBaseUrl(env.GITLAB_API_URL),
           redirectUri: env.GITLAB_OAUTH_REDIRECT_URI || "http://127.0.0.1:8765/callback",
-          scopes: parseOauthScopes(env.GITLAB_OAUTH_SCOPES),
+          scopes: resolveOauthScopes(env.GITLAB_OAUTH_SCOPES, env.GITLAB_READ_ONLY_MODE),
           tokenStoragePath: resolveHomePath(env.GITLAB_OAUTH_TOKEN_PATH),
           autoOpenBrowser: env.GITLAB_OAUTH_AUTO_OPEN_BROWSER
         },
@@ -408,11 +409,4 @@ function attachAuthHeader(headers: Headers, token?: string, authHeader?: GitLabA
   if (!headers.has("PRIVATE-TOKEN")) {
     headers.set("PRIVATE-TOKEN", token);
   }
-}
-
-function parseOauthScopes(rawScopes: string): string[] {
-  return rawScopes
-    .split(/[,\s]+/)
-    .map((scope) => scope.trim())
-    .filter((scope) => scope.length > 0);
 }

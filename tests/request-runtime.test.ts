@@ -13,6 +13,7 @@ import type { Logger } from "pino";
 import { afterAll, afterEach, beforeEach, vi } from "vitest";
 
 import type { AppEnv } from "../src/config/env.js";
+import { parseOauthScopes, resolveOauthScopes } from "../src/lib/oauth-scopes.js";
 import { GitLabRequestRuntime } from "../src/lib/request-runtime.js";
 
 const fetchMock = vi.fn();
@@ -96,16 +97,6 @@ function normalizeWarmupPath(value: string): string {
 function resolveApiRoot(url: URL): string | undefined {
   const match = url.pathname.match(/^(.*\/api\/v4)(?:\/|$)/);
   return match?.[1];
-}
-
-/**
- * Replicate parseOauthScopes for testing.
- */
-function parseOauthScopes(rawScopes: string): string[] {
-  return rawScopes
-    .split(/[,\s]+/)
-    .map((scope) => scope.trim())
-    .filter((scope) => scope.length > 0);
 }
 
 describe("parseTokenOutput", () => {
@@ -271,6 +262,20 @@ describe("parseOauthScopes", () => {
 
   it("trims whitespace from scopes", () => {
     expect(parseOauthScopes("  api  ,  read_user  ")).toEqual(["api", "read_user"]);
+  });
+});
+
+describe("resolveOauthScopes", () => {
+  it("defaults to api when not in read-only mode", () => {
+    expect(resolveOauthScopes(undefined, false)).toEqual(["api"]);
+  });
+
+  it("defaults to read_api when read-only mode is enabled", () => {
+    expect(resolveOauthScopes(undefined, true)).toEqual(["read_api"]);
+  });
+
+  it("preserves explicitly configured scopes in read-only mode", () => {
+    expect(resolveOauthScopes("api read_user", true)).toEqual(["api", "read_user"]);
   });
 });
 
