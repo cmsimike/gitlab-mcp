@@ -82,7 +82,7 @@ export class GitLabRequestRuntime {
     }
 
     if (this.cookieJar) {
-      await this.ensureSessionWarmup(context.url, headers, token);
+      await this.ensureSessionWarmup(context.url, headers, token, authHeader);
     }
 
     return {
@@ -232,7 +232,12 @@ export class GitLabRequestRuntime {
     }
   }
 
-  private async ensureSessionWarmup(url: URL, headers: Headers, token?: string): Promise<void> {
+  private async ensureSessionWarmup(
+    url: URL,
+    headers: Headers,
+    token?: string,
+    authHeader?: "authorization" | "private-token"
+  ): Promise<void> {
     const apiRoot = resolveApiRoot(url);
     if (!apiRoot) {
       return;
@@ -247,9 +252,7 @@ export class GitLabRequestRuntime {
     if (!warmupHeaders.has("Accept")) {
       warmupHeaders.set("Accept", "application/json");
     }
-    if (token && !warmupHeaders.has("PRIVATE-TOKEN")) {
-      warmupHeaders.set("PRIVATE-TOKEN", token);
-    }
+    attachAuthHeader(warmupHeaders, token, authHeader);
 
     try {
       const response = await this.fetchImpl(warmupUrl, {
@@ -380,6 +383,27 @@ function parseTokenOutput(rawOutput: string): string | undefined {
 function getStringField(record: Record<string, unknown>, key: string): string | undefined {
   const value = record[key];
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function attachAuthHeader(
+  headers: Headers,
+  token?: string,
+  authHeader?: "authorization" | "private-token"
+): void {
+  if (!token) {
+    return;
+  }
+
+  if (authHeader === "authorization" || headers.has("Authorization")) {
+    if (!headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    return;
+  }
+
+  if (!headers.has("PRIVATE-TOKEN")) {
+    headers.set("PRIVATE-TOKEN", token);
+  }
 }
 
 function parseOauthScopes(rawScopes: string): string[] {

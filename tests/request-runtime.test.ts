@@ -5,9 +5,32 @@
  *
  * For deeper testing we extract testable logic patterns.
  */
+import * as fs from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { Logger } from "pino";
+import { afterAll, afterEach, beforeEach, vi } from "vitest";
+
+import type { AppEnv } from "../src/config/env.js";
+import { GitLabRequestRuntime } from "../src/lib/request-runtime.js";
+
+const fetchMock = vi.fn();
+const tempDirs: string[] = [];
+
+vi.stubGlobal("fetch", fetchMock);
+
+beforeEach(() => {
+  fetchMock.mockReset();
+});
+
+afterEach(async () => {
+  await Promise.all(tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
+});
+
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 /**
  * Replicate the parseTokenOutput logic for testing.
@@ -250,3 +273,110 @@ describe("parseOauthScopes", () => {
     expect(parseOauthScopes("  api  ,  read_user  ")).toEqual(["api", "read_user"]);
   });
 });
+
+describe("GitLabRequestRuntime cookie warmup", () => {
+  it("preserves authorization header mode during cookie warmup", async () => {
+    fetchMock.mockResolvedValue(
+      new Response("{}", {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+
+    const runtime = new GitLabRequestRuntime(
+      buildEnv({
+        GITLAB_AUTH_COOKIE_PATH: await writeCookieFile()
+      }),
+      buildLogger()
+    );
+
+    await runtime.beforeRequest({
+      url: new URL("https://gitlab.example.com/api/v4/projects"),
+      method: "GET",
+      headers: new Headers(),
+      token: "oauth-token",
+      authHeader: "authorization"
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [warmupUrl, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit];
+    expect(String(warmupUrl)).toBe("https://gitlab.example.com/api/v4/user");
+    const headers = new Headers(init.headers);
+    expect(headers.get("Authorization")).toBe("Bearer oauth-token");
+    expect(headers.has("PRIVATE-TOKEN")).toBe(false);
+  });
+
+  it("uses private-token mode during cookie warmup by default", async () => {
+    fetchMock.mockResolvedValue(
+      new Response("{}", {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+
+    const runtime = new GitLabRequestRuntime(
+      buildEnv({
+        GITLAB_AUTH_COOKIE_PATH: await writeCookieFile()
+      }),
+      buildLogger()
+    );
+
+    await runtime.beforeRequest({
+      url: new URL("https://gitlab.example.com/api/v4/projects"),
+      method: "GET",
+      headers: new Headers(),
+      token: "pat-token"
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit];
+    const headers = new Headers(init.headers);
+    expect(headers.get("PRIVATE-TOKEN")).toBe("pat-token");
+    expect(headers.has("Authorization")).toBe(false);
+  });
+});
+
+function buildEnv(overrides: Partial<AppEnv> = {}): AppEnv {
+  return {
+    GITLAB_API_URL: "https://gitlab.example.com/api/v4",
+    GITLAB_USE_OAUTH: false,
+    GITLAB_OAUTH_CLIENT_ID: undefined,
+    GITLAB_OAUTH_CLIENT_SECRET: undefined,
+    GITLAB_OAUTH_GITLAB_URL: undefined,
+    GITLAB_OAUTH_REDIRECT_URI: undefined,
+    GITLAB_OAUTH_SCOPES: "api",
+    GITLAB_OAUTH_TOKEN_PATH: undefined,
+    GITLAB_OAUTH_AUTO_OPEN_BROWSER: false,
+    GITLAB_AUTH_COOKIE_PATH: undefined,
+    GITLAB_COOKIE_WARMUP_PATH: "/user",
+    GITLAB_TOKEN_FILE: undefined,
+    GITLAB_TOKEN_SCRIPT: undefined,
+    GITLAB_TOKEN_SCRIPT_TIMEOUT_MS: 10_000,
+    GITLAB_TOKEN_CACHE_SECONDS: 300,
+    GITLAB_ALLOW_INSECURE_TOKEN_FILE: false,
+    GITLAB_USER_AGENT: undefined,
+    GITLAB_CLOUDFLARE_BYPASS: false,
+    GITLAB_ACCEPT_LANGUAGE: undefined,
+    GITLAB_HTTP_TIMEOUT_MS: 20_000,
+    ...overrides
+  } as AppEnv;
+}
+
+function buildLogger(): Logger {
+  return {
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn()
+  } as unknown as Logger;
+}
+
+async function writeCookieFile(): Promise<string> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gitlab-mcp-cookies-"));
+  tempDirs.push(dir);
+  const cookiePath = path.join(dir, "cookies.txt");
+  await fs.writeFile(
+    cookiePath,
+    ".gitlab.example.com\tTRUE\t/\tTRUE\t2147483647\tsession\tcookie-value\n",
+    "utf8"
+  );
+  return cookiePath;
+}
