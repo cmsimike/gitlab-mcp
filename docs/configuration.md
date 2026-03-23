@@ -78,10 +78,10 @@ The client will normalize each entry and rotate across them for load distributio
 
 ### Remote Authorization (HTTP Mode)
 
-| Variable                 | Type    | Default | Description                                                                                                                         |
-| ------------------------ | ------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `REMOTE_AUTHORIZATION`   | boolean | `false` | Require per-request tokens via `Authorization` (Bearer) or `Private-Token` headers for HTTP requests. Disables fallback auth chain. |
-| `ENABLE_DYNAMIC_API_URL` | boolean | `false` | Require per-request API URL via `X-GitLab-API-URL` header. Requires `REMOTE_AUTHORIZATION=true`.                                    |
+| Variable                 | Type    | Default | Description                                                                                                                                       |
+| ------------------------ | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REMOTE_AUTHORIZATION`   | boolean | `false` | Require per-request tokens via `Authorization` (Bearer), `Private-Token`, or `Job-Token` headers for HTTP requests. Disables fallback auth chain. |
+| `ENABLE_DYNAMIC_API_URL` | boolean | `false` | Require per-request API URL via `X-GitLab-API-URL` header. Requires `REMOTE_AUTHORIZATION=true`.                                                  |
 
 ## Policy
 

@@ -128,6 +128,21 @@ describe("Remote Authorization Integration", () => {
     expect(sessionId).toBeTruthy();
   });
 
+  it("Job-Token header succeeds", async () => {
+    const res = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: {
+        ...MCP_HEADERS,
+        "Job-Token": "test-job-token"
+      },
+      body: initializeBody()
+    });
+
+    expect(res.status).toBe(200);
+    const sessionId = res.headers.get("mcp-session-id");
+    expect(sessionId).toBeTruthy();
+  });
+
   it("/healthz shows remoteAuthorization: true", async () => {
     const res = await fetch(`${baseUrl}/healthz`);
     const body = (await res.json()) as { remoteAuthorization: boolean };
@@ -281,6 +296,49 @@ describe("Remote Authorization - Auth propagation", () => {
       expect(session).toBeDefined();
       expect(session!.auth?.token).toBe("my-secret-token");
       expect(session!.auth?.header).toBe("authorization");
+    } finally {
+      for (const sessionId of result.sessions.keys()) {
+        await result.closeSession(sessionId, "shutdown");
+      }
+      await new Promise<void>((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      });
+    }
+  });
+
+  it("stores job-token auth mode in session context", async () => {
+    const ctx = buildRemoteAuthContext();
+
+    const result = setupMcpHttpApp({
+      context: ctx,
+      env: ctx.env,
+      logger: ctx.logger
+    });
+
+    const server = createServer(result.app);
+    await new Promise<void>((resolve) => {
+      server.listen(0, "127.0.0.1", () => resolve());
+    });
+
+    const addr = server.address();
+    const url = typeof addr === "object" && addr !== null ? `http://127.0.0.1:${addr.port}` : "";
+
+    try {
+      const initRes = await fetch(`${url}/mcp`, {
+        method: "POST",
+        headers: {
+          ...MCP_HEADERS,
+          "Job-Token": "job-token-123"
+        },
+        body: initializeBody()
+      });
+      expect(initRes.status).toBe(200);
+      const sessionId = initRes.headers.get("mcp-session-id")!;
+
+      const session = result.sessions.get(sessionId);
+      expect(session).toBeDefined();
+      expect(session!.auth?.token).toBe("job-token-123");
+      expect(session!.auth?.header).toBe("job-token");
     } finally {
       for (const sessionId of result.sessions.keys()) {
         await result.closeSession(sessionId, "shutdown");

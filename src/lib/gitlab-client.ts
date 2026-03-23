@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import { getSessionAuth, type SessionAuth } from "./auth-context.js";
+import type { GitLabAuthHeader } from "../types/auth.js";
 
 export interface GitLabClientOptions {
   timeoutMs?: number;
@@ -19,7 +20,7 @@ export interface GitLabRequestOptions {
   headers?: HeadersInit;
   token?: string;
   apiUrl?: string;
-  authHeader?: "authorization" | "private-token";
+  authHeader?: GitLabAuthHeader;
 }
 
 export interface GitLabBeforeRequestContext {
@@ -28,14 +29,14 @@ export interface GitLabBeforeRequestContext {
   headers: Headers;
   body?: BodyInit;
   token?: string;
-  authHeader?: "authorization" | "private-token";
+  authHeader?: GitLabAuthHeader;
 }
 
 export interface GitLabBeforeRequestResult {
   headers?: Headers;
   body?: BodyInit;
   token?: string;
-  authHeader?: "authorization" | "private-token";
+  authHeader?: GitLabAuthHeader;
   fetchImpl?: typeof fetch;
 }
 
@@ -1662,7 +1663,7 @@ export class GitLabClient {
       body?: BodyInit;
       headers?: HeadersInit;
       token?: string;
-      authHeader?: "authorization" | "private-token";
+      authHeader?: GitLabAuthHeader;
     }
   ): Promise<unknown> {
     let headers = new Headers(options.headers);
@@ -1761,7 +1762,7 @@ export class GitLabClient {
   private resolveRequestConfig(options: GitLabRequestOptions): {
     apiUrl: string;
     token?: string;
-    authHeader?: "authorization" | "private-token";
+    authHeader?: GitLabAuthHeader;
   } {
     const sessionAuth = getSessionAuth();
     const apiUrl = options.apiUrl ?? sessionAuth?.apiUrl ?? this.pickApiUrl();
@@ -1813,17 +1814,18 @@ export class GitLabClient {
     return resolved;
   }
 
-  private attachAuth(
-    headers: Headers,
-    token?: string,
-    authHeader?: "authorization" | "private-token"
-  ): void {
+  private attachAuth(headers: Headers, token?: string, authHeader?: GitLabAuthHeader): void {
     if (!token) {
       return;
     }
 
     if (authHeader === "authorization") {
       headers.set("Authorization", `Bearer ${token}`);
+      return;
+    }
+
+    if (authHeader === "job-token") {
+      headers.set("JOB-TOKEN", token);
       return;
     }
 

@@ -251,7 +251,7 @@ export function setupMcpHttpApp(deps: SetupMcpHttpAppDeps): SetupMcpHttpAppResul
           error: {
             code: -32010,
             message:
-              "Missing remote authorization token. Provide 'Authorization: Bearer <token>' or 'Private-Token'."
+              "Missing remote authorization token. Provide 'Authorization: Bearer <token>', 'Private-Token', or 'Job-Token'."
           },
           id: null
         });
@@ -501,13 +501,14 @@ export function setupMcpHttpApp(deps: SetupMcpHttpAppDeps): SetupMcpHttpAppResul
     }
 
     const privateToken = req.header("private-token")?.trim();
+    const jobToken = req.header("job-token")?.trim();
     const authorization = req.header("authorization")?.trim();
 
     const bearerToken = authorization?.toLowerCase().startsWith("bearer ")
       ? authorization.slice(7).trim()
       : undefined;
 
-    const token = privateToken || bearerToken;
+    const token = jobToken || privateToken || bearerToken;
 
     let apiUrl: string | undefined;
 
@@ -533,7 +534,13 @@ export function setupMcpHttpApp(deps: SetupMcpHttpAppDeps): SetupMcpHttpAppResul
     return {
       token,
       apiUrl,
-      header: privateToken ? "private-token" : bearerToken ? "authorization" : undefined,
+      header: jobToken
+        ? "job-token"
+        : privateToken
+          ? "private-token"
+          : bearerToken
+            ? "authorization"
+            : undefined,
       updatedAt: Date.now()
     };
   }

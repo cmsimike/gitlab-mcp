@@ -243,11 +243,11 @@ Add header in client requests:
 
 Remote auth behavior matrix:
 
-| Server Mode                                                 | Required Request Headers                                                        | Token Fallback Chain |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------- |
-| `REMOTE_AUTHORIZATION=false`                                | none                                                                            | enabled              |
-| `REMOTE_AUTHORIZATION=true`                                 | `Authorization: Bearer <token>` or `Private-Token: <token>`                     | disabled             |
-| `REMOTE_AUTHORIZATION=true` + `ENABLE_DYNAMIC_API_URL=true` | `Authorization` or `Private-Token`, and `X-GitLab-API-URL: https://host/api/v4` | disabled             |
+| Server Mode                                                 | Required Request Headers                                                                      | Token Fallback Chain |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------- |
+| `REMOTE_AUTHORIZATION=false`                                | none                                                                                          | enabled              |
+| `REMOTE_AUTHORIZATION=true`                                 | `Authorization: Bearer <token>`, `Private-Token: <token>`, or `Job-Token: <token>`            | disabled             |
+| `REMOTE_AUTHORIZATION=true` + `ENABLE_DYNAMIC_API_URL=true` | `Authorization`, `Private-Token`, or `Job-Token`, and `X-GitLab-API-URL: https://host/api/v4` | disabled             |
 
 ### Docker
 
@@ -410,7 +410,7 @@ See [docs/configuration.md](docs/configuration.md) for the complete reference.
 Authentication behavior depends on mode:
 
 1. **`REMOTE_AUTHORIZATION=true` (HTTP strong mode)**
-   Each request must include `Authorization: Bearer <token>` or `Private-Token: <token>`.
+   Each request must include `Authorization: Bearer <token>`, `Private-Token: <token>`, or `Job-Token: <token>`.
    When `ENABLE_DYNAMIC_API_URL=true`, each request must also include `X-GitLab-API-URL`.
 2. **`REMOTE_AUTHORIZATION=false` (default mode)**
    The server resolves credentials in this order:

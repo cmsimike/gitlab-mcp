@@ -162,7 +162,7 @@ interface SessionAuth {
   sessionId?: string;
   token?: string;
   apiUrl?: string;
-  header?: "authorization" | "private-token";
+  header?: "authorization" | "private-token" | "job-token";
   updatedAt: number;
 }
 ```

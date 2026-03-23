@@ -333,6 +333,36 @@ describe("GitLabRequestRuntime cookie warmup", () => {
     expect(headers.get("PRIVATE-TOKEN")).toBe("pat-token");
     expect(headers.has("Authorization")).toBe(false);
   });
+
+  it("uses job-token mode during cookie warmup when requested", async () => {
+    fetchMock.mockResolvedValue(
+      new Response("{}", {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+
+    const runtime = new GitLabRequestRuntime(
+      buildEnv({
+        GITLAB_AUTH_COOKIE_PATH: await writeCookieFile()
+      }),
+      buildLogger()
+    );
+
+    await runtime.beforeRequest({
+      url: new URL("https://gitlab.example.com/api/v4/projects"),
+      method: "GET",
+      headers: new Headers(),
+      token: "job-token-123",
+      authHeader: "job-token"
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit];
+    const headers = new Headers(init.headers);
+    expect(headers.get("JOB-TOKEN")).toBe("job-token-123");
+    expect(headers.has("PRIVATE-TOKEN")).toBe(false);
+    expect(headers.has("Authorization")).toBe(false);
+  });
 });
 
 function buildEnv(overrides: Partial<AppEnv> = {}): AppEnv {

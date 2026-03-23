@@ -87,6 +87,29 @@ describe("GitLabClient", () => {
       expect(headers.get("Authorization")).toBe("Bearer bearer-token");
       expect(headers.has("PRIVATE-TOKEN")).toBe(false);
     });
+
+    it("uses job-token header when session auth indicates CI job token mode", async () => {
+      fetchMock.mockResolvedValue(jsonResponse([]));
+
+      const client = new GitLabClient("https://gitlab.example.com");
+      await runWithSessionAuth(
+        {
+          token: "job-token-123",
+          apiUrl: "https://gitlab.example.com/api/v4",
+          header: "job-token",
+          updatedAt: Date.now()
+        },
+        async () => {
+          await client.listProjects();
+        }
+      );
+
+      const [, init] = fetchMock.mock.calls[0] as [URL | string, RequestInit];
+      const headers = new Headers(init.headers);
+      expect(headers.get("JOB-TOKEN")).toBe("job-token-123");
+      expect(headers.has("PRIVATE-TOKEN")).toBe(false);
+      expect(headers.has("Authorization")).toBe(false);
+    });
   });
 
   describe("error handling", () => {

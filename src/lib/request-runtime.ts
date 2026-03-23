@@ -9,6 +9,7 @@ import type { Logger } from "pino";
 import { Cookie, CookieJar } from "tough-cookie";
 
 import type { AppEnv } from "../config/env.js";
+import type { GitLabAuthHeader } from "../types/auth.js";
 import type { GitLabBeforeRequestContext, GitLabBeforeRequestResult } from "./gitlab-client.js";
 import { deriveGitLabBaseUrl, GitLabOAuthManager } from "./oauth.js";
 
@@ -23,7 +24,7 @@ interface TokenState {
 
 interface ResolvedFallbackAuth {
   token?: string;
-  authHeader?: "authorization" | "private-token";
+  authHeader?: GitLabAuthHeader;
 }
 
 export class GitLabRequestRuntime {
@@ -236,7 +237,7 @@ export class GitLabRequestRuntime {
     url: URL,
     headers: Headers,
     token?: string,
-    authHeader?: "authorization" | "private-token"
+    authHeader?: GitLabAuthHeader
   ): Promise<void> {
     const apiRoot = resolveApiRoot(url);
     if (!apiRoot) {
@@ -385,11 +386,7 @@ function getStringField(record: Record<string, unknown>, key: string): string | 
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function attachAuthHeader(
-  headers: Headers,
-  token?: string,
-  authHeader?: "authorization" | "private-token"
-): void {
+function attachAuthHeader(headers: Headers, token?: string, authHeader?: GitLabAuthHeader): void {
   if (!token) {
     return;
   }
@@ -397,6 +394,13 @@ function attachAuthHeader(
   if (authHeader === "authorization" || headers.has("Authorization")) {
     if (!headers.has("Authorization")) {
       headers.set("Authorization", `Bearer ${token}`);
+    }
+    return;
+  }
+
+  if (authHeader === "job-token" || headers.has("JOB-TOKEN")) {
+    if (!headers.has("JOB-TOKEN")) {
+      headers.set("JOB-TOKEN", token);
     }
     return;
   }

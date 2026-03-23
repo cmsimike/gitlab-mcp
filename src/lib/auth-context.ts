@@ -1,10 +1,12 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import type { GitLabAuthHeader } from "../types/auth.js";
+
 export interface SessionAuth {
   sessionId?: string;
   token?: string;
   apiUrl?: string;
-  header?: "authorization" | "private-token";
+  header?: GitLabAuthHeader;
   updatedAt: number;
 }
 

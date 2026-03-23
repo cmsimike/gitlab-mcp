@@ -20,7 +20,7 @@ Per-request auth only (required)
 ```
 
 In remote authorization mode, each request must include `Authorization: Bearer <token>` or
-`Private-Token: <token>`. If `ENABLE_DYNAMIC_API_URL=true`, each request must also include
+`Private-Token: <token>`, or `Job-Token: <token>`. If `ENABLE_DYNAMIC_API_URL=true`, each request must also include
 `X-GitLab-API-URL`.
 
 Cookie-based auth (`GITLAB_AUTH_COOKIE_PATH`) is applied independently through a cookie jar and is not part of the token chain.
@@ -221,6 +221,7 @@ The server accepts tokens via:
 
 - **`Authorization: Bearer <token>`** — Standard bearer token
 - **`Private-Token: <token>`** — GitLab private token header
+- **`Job-Token: <token>`** — GitLab CI job token header
 
 ### Dynamic API URL
 
