@@ -77,7 +77,8 @@ const defaultEnv: AppContext["env"] = {
   GITLAB_DENIED_TOOLS_REGEX: undefined,
   NODE_TLS_REJECT_UNAUTHORIZED: undefined,
   HTTP_PROXY: undefined,
-  HTTPS_PROXY: undefined
+  HTTPS_PROXY: undefined,
+  NO_PROXY: undefined
 } as AppContext["env"];
 
 /* ------------------------------------------------------------------ */

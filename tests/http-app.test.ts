@@ -68,7 +68,8 @@ function buildContext(overrides?: { maxSessions?: number }): AppContext {
       GITLAB_DENIED_TOOLS_REGEX: undefined,
       NODE_TLS_REJECT_UNAUTHORIZED: undefined,
       HTTP_PROXY: undefined,
-      HTTPS_PROXY: undefined
+      HTTPS_PROXY: undefined,
+      NO_PROXY: undefined
     } as AppContext["env"],
     logger: {
       info: vi.fn(),

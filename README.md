@@ -398,7 +398,7 @@ node dist/http.js --env-file=.env.production
 | Output          | `GITLAB_MAX_RESPONSE_BYTES`               | `200000`                    | Max response payload (1KB–2MB), oversized payloads are truncated safely.            |
 | Output          | `GITLAB_HTTP_TIMEOUT_MS`                  | `20000`                     | Upstream GitLab HTTP timeout (1s–120s).                                             |
 | Output          | `GITLAB_ERROR_DETAIL_MODE`                | `safe/full`                 | Error verbosity (`safe` by default in production, `full` otherwise).                |
-| Network/TLS     | `HTTP_PROXY`, `HTTPS_PROXY`               | —                           | Proxy settings for outbound GitLab requests.                                        |
+| Network/TLS     | `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`   | —                           | Proxy settings for outbound GitLab requests, including per-host proxy bypass rules. |
 | Network/TLS     | `GITLAB_CA_CERT_PATH`                     | —                           | Custom CA certificate path (PEM).                                                   |
 | Network/TLS     | `GITLAB_CLOUDFLARE_BYPASS`                | `false`                     | Add browser-like headers for Cloudflare-protected instances.                        |
 | Network/TLS     | `GITLAB_USER_AGENT`                       | —                           | Custom User-Agent for GitLab requests.                                              |

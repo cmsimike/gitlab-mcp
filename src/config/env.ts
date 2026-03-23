@@ -73,6 +73,7 @@ const envSchema = z.object({
   GITLAB_CA_CERT_PATH: z.string().optional(),
   HTTP_PROXY: z.string().optional(),
   HTTPS_PROXY: z.string().optional(),
+  NO_PROXY: z.string().optional(),
   USE_GITLAB_WIKI: z.enum(["true", "false"]).default("true"),
   USE_MILESTONE: z.enum(["true", "false"]).default("true"),
   USE_PIPELINE: z.enum(["true", "false"]).default("true"),

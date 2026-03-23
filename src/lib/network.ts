@@ -1,25 +1,34 @@
 import * as fs from "node:fs";
 
 import type { Logger } from "pino";
-import { Agent, ProxyAgent, setGlobalDispatcher } from "undici";
+import { Agent, EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 
 import type { AppEnv } from "../config/env.js";
 
 export function configureNetworkRuntime(env: AppEnv, logger: Logger): void {
   const rejectUnauthorized = env.NODE_TLS_REJECT_UNAUTHORIZED !== "0";
-  const proxyUrl = env.HTTPS_PROXY || env.HTTP_PROXY;
   const connectOptions = {
     rejectUnauthorized,
     ca: loadCaBundle(env, logger)
   };
+  const httpProxy = env.HTTP_PROXY?.trim();
+  const httpsProxy = env.HTTPS_PROXY?.trim();
+  const noProxy = env.NO_PROXY?.trim();
+  const hasProxy = Boolean(httpProxy || httpsProxy);
 
-  if (proxyUrl) {
-    const proxyDispatcher = new ProxyAgent({
-      uri: proxyUrl,
+  if (hasProxy) {
+    const proxyDispatcher = new EnvHttpProxyAgent({
+      httpProxy,
+      httpsProxy,
+      noProxy,
+      connect: connectOptions,
       requestTls: connectOptions
     });
     setGlobalDispatcher(proxyDispatcher);
-    logger.info({ proxyUrl, rejectUnauthorized }, "Configured global proxy dispatcher");
+    logger.info(
+      { httpProxy, httpsProxy, noProxy, rejectUnauthorized },
+      "Configured global proxy dispatcher"
+    );
     return;
   }
 

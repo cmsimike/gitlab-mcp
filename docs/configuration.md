@@ -117,6 +117,7 @@ The client will normalize each entry and rotate across them for load distributio
 | ------------------------------ | ------- | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `HTTP_PROXY`                   | string  | —                | HTTP proxy URL.                                                                                                   |
 | `HTTPS_PROXY`                  | string  | —                | HTTPS proxy URL. Takes precedence over `HTTP_PROXY` for HTTPS requests.                                           |
+| `NO_PROXY`                     | string  | —                | Comma-separated host, suffix, wildcard, or `host:port` entries that bypass the configured proxy.                  |
 | `GITLAB_CA_CERT_PATH`          | string  | —                | Path to a custom CA certificate file (PEM format).                                                                |
 | `NODE_TLS_REJECT_UNAUTHORIZED` | string  | —                | Set to `0` to disable TLS verification. **Requires** `GITLAB_ALLOW_INSECURE_TLS=true` as explicit acknowledgment. |
 | `GITLAB_ALLOW_INSECURE_TLS`    | boolean | `false`          | Acknowledge insecure TLS. Required when `NODE_TLS_REJECT_UNAUTHORIZED=0`.                                         |
