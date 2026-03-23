@@ -538,6 +538,109 @@ describe("assertAuthReady with no token", () => {
 });
 
 /* ------------------------------------------------------------------ */
+/*  Pipeline artifact and deployment tools                             */
+/* ------------------------------------------------------------------ */
+
+describe("Tool handler: pipeline deployment and artifact tools", () => {
+  it("passes filters through to gitlab_list_deployments", async () => {
+    const listDeployments = vi.fn().mockResolvedValue([{ id: 1, environment: { name: "prod" } }]);
+
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ gitlabStub: { listDeployments } })
+    );
+
+    try {
+      const result = await client.callTool({
+        name: "gitlab_list_deployments",
+        arguments: {
+          project_id: "group/project",
+          environment: "prod",
+          status: "success",
+          page: 2
+        }
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(listDeployments).toHaveBeenCalledWith("group/project", {
+        query: {
+          environment: "prod",
+          status: "success",
+          page: 2
+        }
+      });
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+
+  it("returns downloaded archive content from gitlab_download_job_artifacts", async () => {
+    const downloadJobArtifacts = vi.fn().mockResolvedValue({
+      fileName: "artifacts-job-42.zip",
+      contentType: "application/zip",
+      base64: Buffer.from("archive").toString("base64")
+    });
+
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ gitlabStub: { downloadJobArtifacts } })
+    );
+
+    try {
+      const result = await client.callTool({
+        name: "gitlab_download_job_artifacts",
+        arguments: {
+          project_id: "group/project",
+          job_id: "42"
+        }
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(downloadJobArtifacts).toHaveBeenCalledWith("group/project", "42");
+
+      const structured = (result as { structuredContent?: { result?: unknown } }).structuredContent;
+      expect(structured?.result).toEqual({
+        fileName: "artifacts-job-42.zip",
+        contentType: "application/zip",
+        base64: Buffer.from("archive").toString("base64")
+      });
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+
+  it("passes artifact path through to gitlab_get_job_artifact_file", async () => {
+    const getJobArtifactFile = vi.fn().mockResolvedValue({
+      fileName: "summary.txt",
+      contentType: "text/plain",
+      encoding: "utf8",
+      content: "ok"
+    });
+
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ gitlabStub: { getJobArtifactFile } })
+    );
+
+    try {
+      const result = await client.callTool({
+        name: "gitlab_get_job_artifact_file",
+        arguments: {
+          project_id: "group/project",
+          job_id: "99",
+          artifact_path: "reports/summary.txt"
+        }
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(getJobArtifactFile).toHaveBeenCalledWith("group/project", "99", "reports/summary.txt");
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /*  Output truncation                                                  */
 /* ------------------------------------------------------------------ */
 

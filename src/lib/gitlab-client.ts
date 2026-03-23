@@ -70,6 +70,19 @@ export interface MergeRequestCodeContextFile {
   diff: string;
 }
 
+export interface GitLabDownloadedFile {
+  fileName: string;
+  contentType: string;
+  base64: string;
+}
+
+export interface GitLabArtifactFileContent {
+  fileName: string;
+  contentType: string;
+  encoding: "utf8" | "base64";
+  content: string;
+}
+
 export class GitLabApiError extends Error {
   constructor(
     message: string,
@@ -1119,6 +1132,33 @@ export class GitLabClient {
     return this.get(`/projects/${encode(projectId)}/pipelines/${encode(pipelineId)}`, options);
   }
 
+  listDeployments(projectId: string, options: GitLabRequestOptions = {}): Promise<unknown> {
+    return this.get(`/projects/${encode(projectId)}/deployments`, options);
+  }
+
+  getDeployment(
+    projectId: string,
+    deploymentId: string,
+    options: GitLabRequestOptions = {}
+  ): Promise<unknown> {
+    return this.get(`/projects/${encode(projectId)}/deployments/${encode(deploymentId)}`, options);
+  }
+
+  listEnvironments(projectId: string, options: GitLabRequestOptions = {}): Promise<unknown> {
+    return this.get(`/projects/${encode(projectId)}/environments`, options);
+  }
+
+  getEnvironment(
+    projectId: string,
+    environmentId: string,
+    options: GitLabRequestOptions = {}
+  ): Promise<unknown> {
+    return this.get(
+      `/projects/${encode(projectId)}/environments/${encode(environmentId)}`,
+      options
+    );
+  }
+
   listPipelineJobs(
     projectId: string,
     pipelineId: string,
@@ -1152,6 +1192,62 @@ export class GitLabClient {
     options: GitLabRequestOptions = {}
   ): Promise<unknown> {
     return this.get(`/projects/${encode(projectId)}/jobs/${encode(jobId)}/trace`, options);
+  }
+
+  listJobArtifacts(
+    projectId: string,
+    jobId: string,
+    options: GitLabRequestOptions = {}
+  ): Promise<unknown> {
+    return this.get(`/projects/${encode(projectId)}/jobs/${encode(jobId)}/artifacts/tree`, options);
+  }
+
+  async downloadJobArtifacts(
+    projectId: string,
+    jobId: string,
+    options: GitLabRequestOptions = {}
+  ): Promise<GitLabDownloadedFile> {
+    const requestConfig = this.resolveRequestConfig(options);
+    const url = new URL(
+      `projects/${encode(projectId)}/jobs/${encode(jobId)}/artifacts`,
+      `${requestConfig.apiUrl}/`
+    );
+
+    return this.downloadFile(
+      url,
+      {
+        headers: options.headers,
+        token: requestConfig.token,
+        authHeader: requestConfig.authHeader
+      },
+      "Job artifacts",
+      `artifacts-job-${jobId}.zip`
+    );
+  }
+
+  async getJobArtifactFile(
+    projectId: string,
+    jobId: string,
+    artifactPath: string,
+    options: GitLabRequestOptions = {}
+  ): Promise<GitLabArtifactFileContent> {
+    const requestConfig = this.resolveRequestConfig(options);
+    const encodedArtifactPath = encodeSlashPath(artifactPath);
+    const url = new URL(
+      `projects/${encode(projectId)}/jobs/${encode(jobId)}/artifacts/${encodedArtifactPath}`,
+      `${requestConfig.apiUrl}/`
+    );
+
+    return this.downloadFileContent(
+      url,
+      {
+        headers: options.headers,
+        token: requestConfig.token,
+        authHeader: requestConfig.authHeader
+      },
+      "Job artifact file",
+      path.basename(artifactPath) || `artifact-${jobId}`
+    );
   }
 
   createPipeline(
@@ -1524,75 +1620,20 @@ export class GitLabClient {
   async downloadAttachment(
     urlOrPath: string,
     options: GitLabRequestOptions = {}
-  ): Promise<{ fileName: string; contentType: string; base64: string }> {
+  ): Promise<GitLabDownloadedFile> {
     const requestConfig = this.resolveRequestConfig(options);
     const url = this.resolveAttachmentUrl(urlOrPath, requestConfig.apiUrl);
 
-    let headers = new Headers(options.headers);
-    let token = requestConfig.token;
-    let authHeader = requestConfig.authHeader;
-    let fetchImpl: typeof fetch = fetch;
-
-    if (this.beforeRequest) {
-      const override = await this.beforeRequest({
-        url,
-        method: "GET",
-        headers,
-        token,
+    return this.downloadFile(
+      url,
+      {
+        headers: options.headers,
+        token: requestConfig.token,
         authHeader: requestConfig.authHeader
-      });
-
-      if (override?.headers) {
-        headers = override.headers;
-      }
-      if (override?.token !== undefined) {
-        token = override.token;
-      }
-      if (override?.authHeader !== undefined) {
-        authHeader = override.authHeader;
-      }
-      if (override?.fetchImpl) {
-        fetchImpl = override.fetchImpl;
-      }
-    }
-
-    this.attachAuth(headers, token, authHeader);
-
-    const response = await fetchImpl(url, {
-      method: "GET",
-      headers,
-      signal: AbortSignal.timeout(this.timeoutMs)
-    });
-
-    if (!response.ok) {
-      let details: unknown;
-      try {
-        details = await this.parseResponseBody(response);
-      } catch (error) {
-        details = {
-          message: error instanceof Error ? error.message : "Failed to read GitLab error response"
-        };
-      }
-
-      throw new GitLabApiError(
-        `GitLab attachment download failed: ${response.status} ${response.statusText}`,
-        response.status,
-        details
-      );
-    }
-
-    assertContentLengthWithinLimit(response, this.maxAttachmentBytes, "Attachment");
-
-    const contentType = response.headers.get("content-type") ?? "application/octet-stream";
-    const disposition = response.headers.get("content-disposition") ?? "";
-    const fileName = extractFileName(disposition) ?? `attachment-${Date.now()}`;
-    const bytes = await readResponseBytesWithLimit(response, this.maxAttachmentBytes, "Attachment");
-
-    return {
-      fileName,
-      contentType,
-      base64: bytes.toString("base64")
-    };
+      },
+      "Attachment",
+      `attachment-${Date.now()}`
+    );
   }
 
   // graphql
@@ -1614,6 +1655,156 @@ export class GitLabClient {
       token: requestConfig.token,
       authHeader: requestConfig.authHeader
     });
+  }
+
+  private async downloadFile(
+    url: URL,
+    options: {
+      headers?: HeadersInit;
+      token?: string;
+      authHeader?: GitLabAuthHeader;
+    },
+    label: string,
+    fallbackFileName: string
+  ): Promise<GitLabDownloadedFile> {
+    const response = await this.fetchRawResponse(url, {
+      method: "GET",
+      headers: options.headers,
+      token: options.token,
+      authHeader: options.authHeader
+    });
+
+    if (!response.ok) {
+      throw await this.toDownloadError(response, label);
+    }
+
+    assertContentLengthWithinLimit(response, this.maxAttachmentBytes, label);
+
+    const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const fileName = extractFileName(disposition) ?? fallbackFileName;
+    const bytes = await readResponseBytesWithLimit(response, this.maxAttachmentBytes, label);
+
+    return {
+      fileName,
+      contentType,
+      base64: bytes.toString("base64")
+    };
+  }
+
+  private async downloadFileContent(
+    url: URL,
+    options: {
+      headers?: HeadersInit;
+      token?: string;
+      authHeader?: GitLabAuthHeader;
+    },
+    label: string,
+    fallbackFileName: string
+  ): Promise<GitLabArtifactFileContent> {
+    const response = await this.fetchRawResponse(url, {
+      method: "GET",
+      headers: options.headers,
+      token: options.token,
+      authHeader: options.authHeader
+    });
+
+    if (!response.ok) {
+      throw await this.toDownloadError(response, label);
+    }
+
+    assertContentLengthWithinLimit(response, this.maxAttachmentBytes, label);
+
+    const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const fileName = extractFileName(disposition) ?? fallbackFileName;
+    const bytes = await readResponseBytesWithLimit(response, this.maxAttachmentBytes, label);
+
+    if (isTextLikeContent(contentType, fileName)) {
+      return {
+        fileName,
+        contentType,
+        encoding: "utf8",
+        content: bytes.toString("utf8")
+      };
+    }
+
+    return {
+      fileName,
+      contentType,
+      encoding: "base64",
+      content: bytes.toString("base64")
+    };
+  }
+
+  private async fetchRawResponse(
+    url: URL,
+    options: {
+      method: string;
+      headers?: HeadersInit;
+      body?: BodyInit;
+      token?: string;
+      authHeader?: GitLabAuthHeader;
+    }
+  ): Promise<Response> {
+    let headers = new Headers(options.headers);
+    let requestBody = options.body;
+    let token = options.token;
+    let authHeader = options.authHeader;
+    let fetchImpl: typeof fetch = fetch;
+
+    if (this.beforeRequest) {
+      const override = await this.beforeRequest({
+        url,
+        method: options.method,
+        headers,
+        body: requestBody,
+        token,
+        authHeader: options.authHeader
+      });
+
+      if (override?.headers) {
+        headers = override.headers;
+      }
+      if (override?.body !== undefined) {
+        requestBody = override.body;
+      }
+      if (override?.token !== undefined) {
+        token = override.token;
+      }
+      if (override?.authHeader !== undefined) {
+        authHeader = override.authHeader;
+      }
+      if (override?.fetchImpl) {
+        fetchImpl = override.fetchImpl;
+      }
+    }
+
+    this.attachAuth(headers, token, authHeader);
+
+    return fetchImpl(url, {
+      method: options.method,
+      body: requestBody,
+      headers,
+      signal: AbortSignal.timeout(this.timeoutMs)
+    });
+  }
+
+  private async toDownloadError(response: Response, label: string): Promise<GitLabApiError> {
+    let details: unknown;
+    try {
+      details = await this.parseResponseBody(response);
+    } catch (error) {
+      details = {
+        message: error instanceof Error ? error.message : "Failed to read GitLab error response"
+      };
+    }
+
+    return new GitLabApiError(
+      `GitLab ${label.toLowerCase()} download failed: ${response.status} ${response.statusText}`,
+      response.status,
+      details
+    );
   }
 
   // generic methods
@@ -1893,6 +2084,90 @@ function extractFileName(contentDisposition: string): string | undefined {
   }
 
   return decodeURIComponent(quoted[1] ?? "");
+}
+
+const TEXT_CONTENT_TYPE_HINTS = [
+  "application/json",
+  "application/ld+json",
+  "application/problem+json",
+  "application/graphql",
+  "application/javascript",
+  "application/typescript",
+  "application/xml",
+  "application/xhtml+xml",
+  "application/yaml",
+  "application/x-yaml",
+  "application/toml",
+  "application/csv",
+  "application/sql"
+];
+
+const TEXT_FILE_EXTENSIONS = new Set([
+  ".c",
+  ".cc",
+  ".cfg",
+  ".conf",
+  ".cpp",
+  ".cs",
+  ".css",
+  ".csv",
+  ".dockerfile",
+  ".env",
+  ".go",
+  ".graphql",
+  ".h",
+  ".hpp",
+  ".html",
+  ".ini",
+  ".java",
+  ".js",
+  ".json",
+  ".jsx",
+  ".kt",
+  ".kts",
+  ".log",
+  ".md",
+  ".mjs",
+  ".php",
+  ".properties",
+  ".py",
+  ".rb",
+  ".rs",
+  ".scss",
+  ".sh",
+  ".sql",
+  ".svg",
+  ".swift",
+  ".toml",
+  ".ts",
+  ".tsx",
+  ".txt",
+  ".xml",
+  ".yaml",
+  ".yml"
+]);
+
+function isTextLikeContent(contentType: string, fileName: string): boolean {
+  const normalizedContentType = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (normalizedContentType.startsWith("text/")) {
+    return true;
+  }
+
+  if (TEXT_CONTENT_TYPE_HINTS.includes(normalizedContentType)) {
+    return true;
+  }
+
+  return isTextLikeFileName(fileName);
+}
+
+function isTextLikeFileName(fileName: string): boolean {
+  const normalizedFileName = fileName.trim().toLowerCase();
+  if (normalizedFileName === "dockerfile" || normalizedFileName.endsWith(".gitignore")) {
+    return true;
+  }
+
+  const extension = path.extname(normalizedFileName);
+  return extension.length > 0 && TEXT_FILE_EXTENSIONS.has(extension);
 }
 
 function parseContentLength(value: string | null): number | undefined {

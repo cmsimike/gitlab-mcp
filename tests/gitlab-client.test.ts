@@ -752,6 +752,124 @@ describe("GitLabClient", () => {
       expect(body.variables).toEqual([{ key: "ENV", value: "production" }]);
     });
 
+    it("lists deployments with query parameters", async () => {
+      fetchMock.mockResolvedValue(jsonResponse([]));
+
+      const client = new GitLabClient("https://gitlab.example.com", "token");
+      await client.listDeployments("proj", {
+        query: {
+          environment: "production",
+          updated_after: "2026-02-01T00:00:00Z",
+          page: 2
+        }
+      });
+
+      const [requestUrl] = fetchMock.mock.calls[0] as [URL | string];
+      const url = new URL(String(requestUrl));
+      expect(url.pathname).toContain("/projects/proj/deployments");
+      expect(url.searchParams.get("environment")).toBe("production");
+      expect(url.searchParams.get("updated_after")).toBe("2026-02-01T00:00:00Z");
+      expect(url.searchParams.get("page")).toBe("2");
+    });
+
+    it("lists environments with search parameters", async () => {
+      fetchMock.mockResolvedValue(jsonResponse([]));
+
+      const client = new GitLabClient("https://gitlab.example.com", "token");
+      await client.listEnvironments("proj", {
+        query: {
+          search: "prod",
+          states: "available"
+        }
+      });
+
+      const [requestUrl] = fetchMock.mock.calls[0] as [URL | string];
+      const url = new URL(String(requestUrl));
+      expect(url.pathname).toContain("/projects/proj/environments");
+      expect(url.searchParams.get("search")).toBe("prod");
+      expect(url.searchParams.get("states")).toBe("available");
+    });
+
+    it("lists job artifacts with path and recursive filters", async () => {
+      fetchMock.mockResolvedValue(jsonResponse([]));
+
+      const client = new GitLabClient("https://gitlab.example.com", "token");
+      await client.listJobArtifacts("proj", "123", {
+        query: {
+          path: "coverage",
+          recursive: true
+        }
+      });
+
+      const [requestUrl] = fetchMock.mock.calls[0] as [URL | string];
+      const url = new URL(String(requestUrl));
+      expect(url.pathname).toContain("/projects/proj/jobs/123/artifacts/tree");
+      expect(url.searchParams.get("path")).toBe("coverage");
+      expect(url.searchParams.get("recursive")).toBe("true");
+    });
+
+    it("downloads job artifacts as base64 content", async () => {
+      fetchMock.mockResolvedValue(
+        new Response("PK\x03\x04", {
+          status: 200,
+          headers: {
+            "content-type": "application/zip"
+          }
+        })
+      );
+
+      const client = new GitLabClient("https://gitlab.example.com", "token");
+      const result = await client.downloadJobArtifacts("proj", "456");
+
+      expect(result.fileName).toBe("artifacts-job-456.zip");
+      expect(result.contentType).toBe("application/zip");
+      expect(Buffer.from(result.base64, "base64").toString("binary")).toBe("PK\x03\x04");
+    });
+
+    it("returns UTF-8 content for text artifact files", async () => {
+      fetchMock.mockResolvedValue(
+        new Response("coverage: 99%\n", {
+          status: 200,
+          headers: {
+            "content-type": "text/plain"
+          }
+        })
+      );
+
+      const client = new GitLabClient("https://gitlab.example.com", "token");
+      const result = await client.getJobArtifactFile("proj", "789", "reports/summary.txt");
+
+      expect(result).toEqual({
+        fileName: "summary.txt",
+        contentType: "text/plain",
+        encoding: "utf8",
+        content: "coverage: 99%\n"
+      });
+
+      const [requestUrl] = fetchMock.mock.calls[0] as [URL | string];
+      expect(String(requestUrl)).toContain("/projects/proj/jobs/789/artifacts/reports/summary.txt");
+    });
+
+    it("returns base64 content for binary artifact files", async () => {
+      fetchMock.mockResolvedValue(
+        new Response(new Uint8Array([0, 1, 2, 3]), {
+          status: 200,
+          headers: {
+            "content-type": "application/octet-stream",
+            "content-disposition": 'attachment; filename="report.bin"'
+          }
+        })
+      );
+
+      const client = new GitLabClient("https://gitlab.example.com", "token");
+      const result = await client.getJobArtifactFile("proj", "790", "reports/report.bin");
+
+      expect(result.fileName).toBe("report.bin");
+      expect(result.contentType).toBe("application/octet-stream");
+      expect(result.encoding).toBe("base64");
+      expect(Buffer.from(result.content, "base64")).toEqual(Buffer.from([0, 1, 2, 3]));
+    });
+
     it("gets commit diff", async () => {
       fetchMock.mockResolvedValue(jsonResponse([]));
 

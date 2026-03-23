@@ -212,10 +212,17 @@ Requires `USE_PIPELINE=true` (default).
 | ----------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
 | `gitlab_list_pipelines`             | No       | List pipelines. Supports `scope`, `status`, `ref`, `sha`, `username`, `source`, `order_by`, `sort`, date filters. |
 | `gitlab_get_pipeline`               | No       | Get one pipeline by ID.                                                                                           |
+| `gitlab_list_deployments`           | No       | List deployments. Supports `environment`, `ref`, `sha`, `status`, `order_by`, `sort`, date filters.               |
+| `gitlab_get_deployment`             | No       | Get one deployment by ID.                                                                                         |
+| `gitlab_list_environments`          | No       | List environments. Supports `name`, `search`, `states`, pagination.                                               |
+| `gitlab_get_environment`            | No       | Get one environment by ID.                                                                                        |
 | `gitlab_list_pipeline_jobs`         | No       | List jobs in a pipeline. Supports `scope`, `include_retried`.                                                     |
 | `gitlab_list_pipeline_trigger_jobs` | No       | List downstream/bridge trigger jobs in a pipeline.                                                                |
 | `gitlab_get_pipeline_job`           | No       | Get one job by ID.                                                                                                |
 | `gitlab_get_pipeline_job_output`    | No       | Get raw job trace/log output.                                                                                     |
+| `gitlab_list_job_artifacts`         | No       | List files and directories inside a job artifacts archive. Supports `path`, `recursive`.                          |
+| `gitlab_download_job_artifacts`     | No       | Download the full artifacts archive and return base64 content plus metadata.                                      |
+| `gitlab_get_job_artifact_file`      | No       | Get one file from a job artifacts archive. Returns UTF-8 text when safe, otherwise base64.                        |
 | `gitlab_create_pipeline`            | **Yes**  | Trigger a new pipeline. Params: `ref` (required). Supports `variables` array (`key`, `value`, `variable_type`).   |
 | `gitlab_retry_pipeline`             | **Yes**  | Retry failed jobs in a pipeline.                                                                                  |
 | `gitlab_cancel_pipeline`            | **Yes**  | Cancel a running pipeline.                                                                                        |

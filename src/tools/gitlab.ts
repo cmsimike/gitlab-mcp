@@ -1862,6 +1862,81 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
         )
     },
     {
+      name: "gitlab_list_deployments",
+      title: "List Deployments",
+      description: "List deployments in a project.",
+      mutating: false,
+      requiresFeature: "pipeline",
+      inputSchema: {
+        project_id: z.string().optional(),
+        environment: optionalString,
+        ref: optionalString,
+        sha: optionalString,
+        status: optionalString,
+        updated_after: optionalString,
+        updated_before: optionalString,
+        order_by: z
+          .enum(["id", "iid", "created_at", "updated_at", "ref", "status", "environment"])
+          .optional(),
+        sort: z.enum(["asc", "desc"]).optional(),
+        ...paginationShape
+      },
+      handler: async (args, context) =>
+        context.gitlab.listDeployments(resolveProjectId(args, context, true), {
+          query: toQuery(omit(args, ["project_id"]))
+        })
+    },
+    {
+      name: "gitlab_get_deployment",
+      title: "Get Deployment",
+      description: "Get one deployment by ID.",
+      mutating: false,
+      requiresFeature: "pipeline",
+      inputSchema: {
+        project_id: z.string().optional(),
+        deployment_id: z.string().min(1)
+      },
+      handler: async (args, context) =>
+        context.gitlab.getDeployment(
+          resolveProjectId(args, context, true),
+          getString(args, "deployment_id")
+        )
+    },
+    {
+      name: "gitlab_list_environments",
+      title: "List Environments",
+      description: "List environments in a project.",
+      mutating: false,
+      requiresFeature: "pipeline",
+      inputSchema: {
+        project_id: z.string().optional(),
+        name: optionalString,
+        search: optionalString,
+        states: z.enum(["available", "stopped"]).optional(),
+        ...paginationShape
+      },
+      handler: async (args, context) =>
+        context.gitlab.listEnvironments(resolveProjectId(args, context, true), {
+          query: toQuery(omit(args, ["project_id"]))
+        })
+    },
+    {
+      name: "gitlab_get_environment",
+      title: "Get Environment",
+      description: "Get one environment by ID.",
+      mutating: false,
+      requiresFeature: "pipeline",
+      inputSchema: {
+        project_id: z.string().optional(),
+        environment_id: z.string().min(1)
+      },
+      handler: async (args, context) =>
+        context.gitlab.getEnvironment(
+          resolveProjectId(args, context, true),
+          getString(args, "environment_id")
+        )
+    },
+    {
       name: "gitlab_list_pipeline_jobs",
       title: "List Pipeline Jobs",
       description: "List jobs in a pipeline.",
@@ -1956,6 +2031,59 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
         context.gitlab.getPipelineJobOutput(
           resolveProjectId(args, context, true),
           getString(args, "job_id")
+        )
+    },
+    {
+      name: "gitlab_list_job_artifacts",
+      title: "List Job Artifacts",
+      description: "List files and directories inside a job artifacts archive.",
+      mutating: false,
+      requiresFeature: "pipeline",
+      inputSchema: {
+        project_id: z.string().optional(),
+        job_id: z.string().min(1),
+        path: optionalString,
+        recursive: optionalBoolean
+      },
+      handler: async (args, context) =>
+        context.gitlab.listJobArtifacts(
+          resolveProjectId(args, context, true),
+          getString(args, "job_id"),
+          { query: toQuery(omit(args, ["project_id", "job_id"])) }
+        )
+    },
+    {
+      name: "gitlab_download_job_artifacts",
+      title: "Download Job Artifacts",
+      description: "Download the full job artifacts archive as base64 content.",
+      mutating: false,
+      requiresFeature: "pipeline",
+      inputSchema: {
+        project_id: z.string().optional(),
+        job_id: z.string().min(1)
+      },
+      handler: async (args, context) =>
+        context.gitlab.downloadJobArtifacts(
+          resolveProjectId(args, context, true),
+          getString(args, "job_id")
+        )
+    },
+    {
+      name: "gitlab_get_job_artifact_file",
+      title: "Get Job Artifact File",
+      description: "Get one file from a job artifacts archive.",
+      mutating: false,
+      requiresFeature: "pipeline",
+      inputSchema: {
+        project_id: z.string().optional(),
+        job_id: z.string().min(1),
+        artifact_path: z.string().min(1)
+      },
+      handler: async (args, context) =>
+        context.gitlab.getJobArtifactFile(
+          resolveProjectId(args, context, true),
+          getString(args, "job_id"),
+          getString(args, "artifact_path")
         )
     },
     {
