@@ -361,6 +361,8 @@ USE_PIPELINE=false
 USE_GITLAB_WIKI=false
 ```
 
+Unsafe or overly broad `GITLAB_DENIED_TOOLS_REGEX` patterns are ignored at startup.
+
 ## Configuration
 
 All configuration is done through environment variables. Key settings:

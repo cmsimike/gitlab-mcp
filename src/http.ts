@@ -8,6 +8,7 @@ import { logger } from "./lib/logger.js";
 import { configureNetworkRuntime } from "./lib/network.js";
 import { OutputFormatter } from "./lib/output.js";
 import { ToolPolicyEngine } from "./lib/policy.js";
+import { compileDeniedToolsRegex } from "./lib/regex.js";
 import { GitLabRequestRuntime } from "./lib/request-runtime.js";
 import { setupMcpHttpApp } from "./http-app.js";
 import type { AppContext } from "./types/context.js";
@@ -30,9 +31,7 @@ const context: AppContext = {
   policy: new ToolPolicyEngine({
     readOnlyMode: env.GITLAB_READ_ONLY_MODE,
     allowedTools: env.GITLAB_ALLOWED_TOOLS,
-    deniedToolsRegex: env.GITLAB_DENIED_TOOLS_REGEX
-      ? new RegExp(env.GITLAB_DENIED_TOOLS_REGEX)
-      : undefined,
+    deniedToolsRegex: compileDeniedToolsRegex(env.GITLAB_DENIED_TOOLS_REGEX, logger),
     enabledFeatures: {
       wiki: env.USE_GITLAB_WIKI,
       milestone: env.USE_MILESTONE,

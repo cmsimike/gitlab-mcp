@@ -302,6 +302,47 @@ describe("Tool handler: gitlab_get_merge_request", () => {
 });
 
 /* ------------------------------------------------------------------ */
+/*  gitlab_list_merge_requests                                         */
+/* ------------------------------------------------------------------ */
+
+describe("Tool handler: gitlab_list_merge_requests", () => {
+  it("prefers *_username filters over *_id filters to avoid GitLab 400s", async () => {
+    const listMergeRequests = vi.fn().mockResolvedValue([]);
+
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ gitlabStub: { listMergeRequests } })
+    );
+
+    try {
+      const result = await client.callTool({
+        name: "gitlab_list_merge_requests",
+        arguments: {
+          project_id: "group/project",
+          author_id: "1",
+          author_username: "alice",
+          assignee_id: "2",
+          assignee_username: "bob",
+          reviewer_id: "3",
+          reviewer_username: "carol"
+        }
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(listMergeRequests).toHaveBeenCalledWith("group/project", {
+        query: {
+          author_username: "alice",
+          assignee_username: "bob",
+          reviewer_username: "carol"
+        }
+      });
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /*  gitlab_get_merge_request_conflicts                                 */
 /* ------------------------------------------------------------------ */
 

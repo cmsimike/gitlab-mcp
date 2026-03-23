@@ -250,6 +250,8 @@ GITLAB_DENIED_TOOLS_REGEX=^gitlab_(delete|create)_
 GITLAB_ALLOWED_PROJECT_IDS=123,456
 ```
 
+Unsafe `GITLAB_DENIED_TOOLS_REGEX` patterns are ignored instead of failing startup.
+
 ---
 
 ## Multi-Instance Deployment

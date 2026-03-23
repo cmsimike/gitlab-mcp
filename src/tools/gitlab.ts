@@ -620,7 +620,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       },
       handler: async (args, context) => {
         const projectId = resolveProjectId(args, context, false);
-        const query = toQuery(omit(args, ["project_id"]));
+        const query = toQuery(cleanMergeRequestListArgs(omit(args, ["project_id"])));
 
         if (projectId) {
           return context.gitlab.listMergeRequests(projectId, { query });
@@ -3350,6 +3350,32 @@ function getOptionalStringRecord(args: ToolArgs, key: string): Record<string, st
   }
 
   return value as Record<string, string>;
+}
+
+function cleanMergeRequestListArgs(args: ToolArgs): ToolArgs {
+  const cleanedArgs = { ...args };
+
+  if (hasValue(cleanedArgs.author_username)) {
+    delete cleanedArgs.author_id;
+  }
+
+  if (hasValue(cleanedArgs.assignee_username)) {
+    delete cleanedArgs.assignee_id;
+  }
+
+  if (hasValue(cleanedArgs.reviewer_username)) {
+    delete cleanedArgs.reviewer_id;
+  }
+
+  return cleanedArgs;
+}
+
+function hasValue(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.length > 0;
+  }
+
+  return value !== undefined && value !== null;
 }
 
 function requireArrayValue<T>(items: T[], index: number, errorMessage: string): T {
