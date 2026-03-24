@@ -392,6 +392,7 @@ function buildEnv(overrides: Partial<AppEnv> = {}): AppEnv {
     GITLAB_CLOUDFLARE_BYPASS: false,
     GITLAB_ACCEPT_LANGUAGE: undefined,
     GITLAB_HTTP_TIMEOUT_MS: 20_000,
+    GITLAB_MAX_LOCAL_FILE_BYTES: 250_000_000,
     ...overrides
   } as AppEnv;
 }

@@ -8,6 +8,7 @@ export interface GitLabClientOptions {
   timeoutMs?: number;
   apiUrls?: string[];
   maxAttachmentBytes?: number;
+  maxLocalFileBytes?: number;
   maxResponseBodyBytes?: number;
   beforeRequest?: (
     context: GitLabBeforeRequestContext
@@ -105,6 +106,7 @@ export class GitLabApiError extends Error {
 
 export class GitLabClient {
   private static readonly DEFAULT_MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+  private static readonly DEFAULT_MAX_LOCAL_FILE_BYTES = 250 * 1024 * 1024;
   private static readonly DEFAULT_MAX_RESPONSE_BODY_BYTES = 25 * 1024 * 1024;
 
   private readonly baseApiUrl: string;
@@ -113,6 +115,7 @@ export class GitLabClient {
   private readonly defaultToken?: string;
   private readonly timeoutMs: number;
   private readonly maxAttachmentBytes: number;
+  private readonly maxLocalFileBytes: number;
   private readonly maxResponseBodyBytes: number;
   private readonly beforeRequest?: GitLabClientOptions["beforeRequest"];
 
@@ -126,6 +129,7 @@ export class GitLabClient {
     this.timeoutMs = options.timeoutMs ?? 20_000;
     this.maxAttachmentBytes =
       options.maxAttachmentBytes ?? GitLabClient.DEFAULT_MAX_ATTACHMENT_BYTES;
+    this.maxLocalFileBytes = options.maxLocalFileBytes ?? GitLabClient.DEFAULT_MAX_LOCAL_FILE_BYTES;
     this.maxResponseBodyBytes =
       options.maxResponseBodyBytes ?? GitLabClient.DEFAULT_MAX_RESPONSE_BODY_BYTES;
     this.beforeRequest = options.beforeRequest;
@@ -1764,23 +1768,27 @@ export class GitLabClient {
       throw await this.toDownloadError(response, label);
     }
 
-    assertContentLengthWithinLimit(response, this.maxAttachmentBytes, label);
+    assertContentLengthWithinLimit(response, this.maxLocalFileBytes, label);
 
     const contentType = response.headers.get("content-type") ?? "application/octet-stream";
     const disposition = response.headers.get("content-disposition") ?? "";
     const fileName = resolveDownloadedFileName(disposition, fallbackFileName);
-    const bytes = await readResponseBytesWithLimit(response, this.maxAttachmentBytes, label);
     const baseDirectory = localPath ? path.resolve(localPath) : process.cwd();
     const filePath = path.join(baseDirectory, fileName);
 
     await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, bytes);
+    const size = await writeResponseToFileWithLimit(
+      response,
+      filePath,
+      this.maxLocalFileBytes,
+      label
+    );
 
     return {
       filePath,
       fileName,
       contentType,
-      size: bytes.length
+      size
     };
   }
 
@@ -2352,4 +2360,75 @@ async function readResponseBytesWithLimit(
   }
 
   return Buffer.concat(chunks, total);
+}
+
+async function writeResponseToFileWithLimit(
+  response: Response,
+  filePath: string,
+  maxBytes: number,
+  label: string
+): Promise<number> {
+  if (!response.body) {
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > maxBytes) {
+      throw new Error(`${label} size ${bytes.length} bytes exceeds limit ${maxBytes} bytes`);
+    }
+    await fs.writeFile(filePath, bytes);
+    return bytes.length;
+  }
+
+  const fileHandle = await fs.open(filePath, "w");
+  const reader = response.body.getReader();
+  let total = 0;
+  let success = false;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        success = true;
+        return total;
+      }
+
+      if (!value) {
+        continue;
+      }
+
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new Error(`${label} size ${total} bytes exceeds limit ${maxBytes} bytes`);
+      }
+
+      await writeBufferToFile(fileHandle, Buffer.from(value), total - value.byteLength);
+    }
+  } finally {
+    reader.releaseLock();
+    await fileHandle.close();
+    if (!success) {
+      await fs.rm(filePath, { force: true });
+    }
+  }
+}
+
+async function writeBufferToFile(
+  fileHandle: fs.FileHandle,
+  buffer: Buffer,
+  startPosition: number
+): Promise<void> {
+  let offset = 0;
+
+  while (offset < buffer.length) {
+    const { bytesWritten } = await fileHandle.write(
+      buffer,
+      offset,
+      buffer.length - offset,
+      startPosition + offset
+    );
+    if (bytesWritten <= 0) {
+      throw new Error("Failed to write download chunk");
+    }
+
+    offset += bytesWritten;
+  }
 }

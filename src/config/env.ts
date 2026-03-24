@@ -64,6 +64,12 @@ const envSchema = z.object({
   GITLAB_ALLOW_GRAPHQL_WITH_PROJECT_SCOPE: z.enum(["true", "false"]).default("false"),
   GITLAB_RESPONSE_MODE: responseModeSchema.default("json"),
   GITLAB_MAX_RESPONSE_BYTES: z.coerce.number().int().min(1024).max(2_000_000).default(200_000),
+  GITLAB_MAX_LOCAL_FILE_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1024)
+    .max(2_000_000_000)
+    .default(250_000_000),
   GITLAB_HTTP_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(20_000),
   GITLAB_ERROR_DETAIL_MODE: errorDetailModeSchema.optional(),
   GITLAB_AUTH_COOKIE_PATH: z.string().optional(),

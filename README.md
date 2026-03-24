@@ -398,6 +398,7 @@ node dist/http.js --env-file=.env.production
 | Auth Extensions | `GITLAB_AUTH_COOKIE_PATH`                 | —                           | Enable cookie-jar based session auth from Netscape cookie file.                     |
 | Output          | `GITLAB_RESPONSE_MODE`                    | `json`                      | Response format: `json`, `compact-json`, `yaml`.                                    |
 | Output          | `GITLAB_MAX_RESPONSE_BYTES`               | `200000`                    | Max response payload (1KB–2MB), oversized payloads are truncated safely.            |
+| Output          | `GITLAB_MAX_LOCAL_FILE_BYTES`             | `250000000`                 | Max size for files saved locally by download tools such as job artifacts.           |
 | Output          | `GITLAB_HTTP_TIMEOUT_MS`                  | `20000`                     | Upstream GitLab HTTP timeout (1s–120s).                                             |
 | Output          | `GITLAB_ERROR_DETAIL_MODE`                | `safe/full`                 | Error verbosity (`safe` by default in production, `full` otherwise).                |
 | Network/TLS     | `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`   | —                           | Proxy settings for outbound GitLab requests, including per-host proxy bypass rules. |

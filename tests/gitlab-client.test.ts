@@ -876,6 +876,35 @@ describe("GitLabClient", () => {
       await expect(fs.readFile(result.filePath, "binary")).resolves.toBe("PK\x03\x04");
     });
 
+    it("uses the local file limit for streamed artifact downloads", async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("12345"));
+          controller.enqueue(new TextEncoder().encode("67890"));
+          controller.close();
+        }
+      });
+      fetchMock.mockResolvedValue(
+        new Response(stream, {
+          status: 200,
+          headers: {
+            "content-type": "application/zip"
+          }
+        })
+      );
+
+      const client = new GitLabClient("https://gitlab.example.com", "token", {
+        maxAttachmentBytes: 8,
+        maxLocalFileBytes: 10
+      });
+      const outputDir = await createTempDir("gitlab-job-artifacts-streamed-");
+      const result = await client.downloadJobArtifacts("proj", "458", outputDir);
+
+      expect(result.filePath).toBe(path.join(outputDir, "artifacts-job-458.zip"));
+      expect(result.size).toBe(10);
+      await expect(fs.readFile(result.filePath, "utf8")).resolves.toBe("1234567890");
+    });
+
     it("sanitizes downloaded artifact filenames before saving locally", async () => {
       fetchMock.mockResolvedValue(
         new Response("safe\n", {
@@ -894,6 +923,37 @@ describe("GitLabClient", () => {
       expect(result.fileName).toBe("outside.txt");
       expect(result.filePath).toBe(path.join(outputDir, "outside.txt"));
       await expect(fs.readFile(result.filePath, "utf8")).resolves.toBe("safe\n");
+    });
+
+    it("cleans up partial files when local artifact download exceeds configured limit", async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("12345"));
+          controller.enqueue(new TextEncoder().encode("67890"));
+          controller.close();
+        }
+      });
+      fetchMock.mockResolvedValue(
+        new Response(stream, {
+          status: 200,
+          headers: {
+            "content-type": "application/zip"
+          }
+        })
+      );
+
+      const client = new GitLabClient("https://gitlab.example.com", "token", {
+        maxLocalFileBytes: 9
+      });
+      const outputDir = await createTempDir("gitlab-job-artifacts-limit-");
+      const filePath = path.join(outputDir, "artifacts-job-459.zip");
+      const error = await client
+        .downloadJobArtifacts("proj", "459", outputDir)
+        .catch((reason) => reason);
+
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain("exceeds limit");
+      await expect(fs.access(filePath)).rejects.toBeDefined();
     });
 
     it("returns UTF-8 content for text artifact files", async () => {

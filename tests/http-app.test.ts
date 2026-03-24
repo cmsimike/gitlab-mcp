@@ -33,6 +33,7 @@ function buildContext(overrides?: { maxSessions?: number }): AppContext {
       GITLAB_ALLOW_GRAPHQL_WITH_PROJECT_SCOPE: false,
       GITLAB_RESPONSE_MODE: "json",
       GITLAB_MAX_RESPONSE_BYTES: 200_000,
+      GITLAB_MAX_LOCAL_FILE_BYTES: 250_000_000,
       GITLAB_HTTP_TIMEOUT_MS: 20_000,
       GITLAB_ERROR_DETAIL_MODE: "full",
       GITLAB_CLOUDFLARE_BYPASS: false,

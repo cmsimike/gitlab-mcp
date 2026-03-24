@@ -26,6 +26,7 @@ const context: AppContext = {
   gitlab: new GitLabClient(env.GITLAB_API_URL, env.GITLAB_PERSONAL_ACCESS_TOKEN, {
     apiUrls: env.GITLAB_API_URLS,
     timeoutMs: env.GITLAB_HTTP_TIMEOUT_MS,
+    maxLocalFileBytes: env.GITLAB_MAX_LOCAL_FILE_BYTES,
     beforeRequest: (requestContext) => requestRuntime.beforeRequest(requestContext)
   }),
   policy: new ToolPolicyEngine({
