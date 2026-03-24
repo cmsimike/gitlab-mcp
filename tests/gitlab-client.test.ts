@@ -946,6 +946,10 @@ describe("GitLabClient", () => {
       expect(result.filePath).toBe(path.join(outputDir, "artifacts-job-457-1.zip"));
       await expect(fs.readFile(existingFilePath, "utf8")).resolves.toBe("existing artifact\n");
       await expect(fs.readFile(result.filePath, "utf8")).resolves.toBe("new artifact\n");
+      await expect(fs.readdir(outputDir)).resolves.toEqual([
+        "artifacts-job-457-1.zip",
+        "artifacts-job-457.zip"
+      ]);
     });
 
     it("cleans up partial files when local artifact download exceeds configured limit", async () => {

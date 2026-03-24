@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
@@ -1775,18 +1776,17 @@ export class GitLabClient {
     const disposition = response.headers.get("content-disposition") ?? "";
     const resolvedFileName = resolveDownloadedFileName(disposition, fallbackFileName);
     const baseDirectory = localPath ? path.resolve(localPath) : process.cwd();
-    const filePath = await resolveAvailableDownloadPath(baseDirectory, resolvedFileName);
-    const fileName = path.basename(filePath);
-    const tempFilePath = buildTemporaryDownloadPath(filePath);
+    const tempFilePath = buildTemporaryDownloadPath(baseDirectory, resolvedFileName);
 
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.mkdir(baseDirectory, { recursive: true });
     const size = await writeResponseToFileWithLimit(
       response,
       tempFilePath,
       this.maxLocalFileBytes,
       label
     );
-    await fs.rename(tempFilePath, filePath);
+    const filePath = await commitDownloadedFile(tempFilePath, baseDirectory, resolvedFileName);
+    const fileName = path.basename(filePath);
 
     return {
       filePath,
@@ -2210,29 +2210,69 @@ function sanitizeDownloadedFileName(fileName: string | undefined): string | unde
   return basename;
 }
 
-async function resolveAvailableDownloadPath(
+async function commitDownloadedFile(
+  tempFilePath: string,
   baseDirectory: string,
   fileName: string
 ): Promise<string> {
   const parsed = path.parse(fileName);
 
-  for (let suffix = 0; suffix < 10_000; suffix += 1) {
-    const candidateName =
-      suffix === 0 ? fileName : `${parsed.name || "downloaded-file"}-${suffix}${parsed.ext}`;
-    const candidatePath = path.join(baseDirectory, candidateName);
+  try {
+    for (let suffix = 0; suffix < 10_000; suffix += 1) {
+      const candidateName =
+        suffix === 0 ? fileName : `${parsed.name || "downloaded-file"}-${suffix}${parsed.ext}`;
+      const candidatePath = path.join(baseDirectory, candidateName);
 
-    try {
-      await fs.access(candidatePath);
-    } catch {
-      return candidatePath;
+      try {
+        await fs.link(tempFilePath, candidatePath);
+        return candidatePath;
+      } catch (error) {
+        if (isFileExistsError(error)) {
+          continue;
+        }
+
+        if (!supportsAtomicLinkFallback(error)) {
+          throw error;
+        }
+
+        try {
+          await fs.copyFile(tempFilePath, candidatePath, fsConstants.COPYFILE_EXCL);
+          return candidatePath;
+        } catch (copyError) {
+          if (isFileExistsError(copyError)) {
+            continue;
+          }
+
+          throw copyError;
+        }
+      }
     }
-  }
 
-  throw new Error(`Unable to find an available local file name for '${fileName}'`);
+    throw new Error(`Unable to find an available local file name for '${fileName}'`);
+  } finally {
+    await fs.rm(tempFilePath, { force: true });
+  }
 }
 
-function buildTemporaryDownloadPath(filePath: string): string {
-  return path.join(path.dirname(filePath), `.${path.basename(filePath)}.${randomUUID()}.tmp`);
+function buildTemporaryDownloadPath(baseDirectory: string, fileName: string): string {
+  return path.join(baseDirectory, `.${fileName}.${randomUUID()}.tmp`);
+}
+
+function isFileExistsError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "EEXIST"
+  );
+}
+
+function supportsAtomicLinkFallback(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return false;
+  }
+
+  return ["EMLINK", "ENOTSUP", "EPERM"].includes(String((error as { code?: unknown }).code));
 }
 
 const TEXT_CONTENT_TYPE_HINTS = [
