@@ -705,6 +705,7 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
 
       expect(names).not.toContain("gitlab_download_job_artifacts");
       expect(names).not.toContain("gitlab_get_job_artifact_file");
+      expect(names).toContain("gitlab_get_job_artifact_file_inline");
       expect(names).toContain("gitlab_list_job_artifacts");
     } finally {
       await clientTransport.close();
@@ -824,7 +825,7 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
     }
   });
 
-  it("returns inline artifact content when inline=true", async () => {
+  it("returns inline artifact content through the read-only-safe tool", async () => {
     const getJobArtifactFile = vi.fn().mockResolvedValue({
       fileName: "summary.txt",
       contentType: "text/plain",
@@ -833,17 +834,16 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
     });
 
     const { client, clientTransport, serverTransport } = await createLinkedPair(
-      buildContext({ gitlabStub: { getJobArtifactFile } })
+      buildContext({ readOnlyMode: true, gitlabStub: { getJobArtifactFile } })
     );
 
     try {
       const result = await client.callTool({
-        name: "gitlab_get_job_artifact_file",
+        name: "gitlab_get_job_artifact_file_inline",
         arguments: {
           project_id: "group/project",
           job_id: "99",
-          artifact_path: "reports/summary.txt",
-          inline: true
+          artifact_path: "reports/summary.txt"
         }
       });
 

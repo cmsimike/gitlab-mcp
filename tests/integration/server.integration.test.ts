@@ -80,6 +80,7 @@ describe("MCP Server Integration (InMemoryTransport)", () => {
       expect(names).toContain("gitlab_list_issues");
       expect(names).toContain("gitlab_list_deployments");
       expect(names).toContain("gitlab_list_job_artifacts");
+      expect(names).toContain("gitlab_get_job_artifact_file_inline");
     });
 
     it("every tool has a name and inputSchema", async () => {
@@ -217,6 +218,7 @@ describe("MCP Server Integration - Feature flag filtering", () => {
       expect(names).not.toContain("gitlab_get_pipeline");
       expect(names).not.toContain("gitlab_list_deployments");
       expect(names).not.toContain("gitlab_list_job_artifacts");
+      expect(names).not.toContain("gitlab_get_job_artifact_file_inline");
     } finally {
       await clientTransport.close();
       await serverTransport.close();

@@ -2100,34 +2100,43 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
         )
     },
     {
+      name: "gitlab_get_job_artifact_file_inline",
+      title: "Get Job Artifact File Inline",
+      description:
+        "Return one file from a job artifacts archive as inline UTF-8 or base64 content.",
+      mutating: false,
+      requiresFeature: "pipeline",
+      inputSchema: {
+        project_id: z.string().optional(),
+        job_id: z.string().min(1),
+        artifact_path: z.string().min(1)
+      },
+      handler: async (args, context) =>
+        context.gitlab.getJobArtifactFile(
+          resolveProjectId(args, context, true),
+          getString(args, "job_id"),
+          getString(args, "artifact_path")
+        )
+    },
+    {
       name: "gitlab_get_job_artifact_file",
       title: "Get Job Artifact File",
-      description: "Save one file from a job artifacts archive, or return inline content.",
+      description: "Save one file from a job artifacts archive to a local directory.",
       mutating: true,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: z.string().optional(),
         job_id: z.string().min(1),
         artifact_path: z.string().min(1),
-        local_path: optionalString,
-        inline: optionalBoolean
+        local_path: optionalString
       },
-      handler: async (args, context) => {
-        const projectId = resolveProjectId(args, context, true);
-        const jobId = getString(args, "job_id");
-        const artifactPath = getString(args, "artifact_path");
-
-        if (getOptionalBoolean(args, "inline") === true) {
-          return context.gitlab.getJobArtifactFile(projectId, jobId, artifactPath);
-        }
-
-        return context.gitlab.saveJobArtifactFile(
-          projectId,
-          jobId,
-          artifactPath,
+      handler: async (args, context) =>
+        context.gitlab.saveJobArtifactFile(
+          resolveProjectId(args, context, true),
+          getString(args, "job_id"),
+          getString(args, "artifact_path"),
           getOptionalString(args, "local_path")
-        );
-      }
+        )
     },
     {
       name: "gitlab_create_pipeline",

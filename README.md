@@ -323,7 +323,7 @@ Tools are organized into these categories. All GitLab tools use the `gitlab_` pr
 | **MR Notes**        | `list_merge_request_notes`, `create_merge_request_note`                     | 7     |
 | **Draft Notes**     | `list_draft_notes`, `create_draft_note`, `bulk_publish_draft_notes`         | 7     |
 | **Issues**          | `list_issues`, `create_issue`, `update_issue`, issue links                  | 13    |
-| **Pipelines**       | `list_pipelines`, `list_deployments`, `list_job_artifacts`                  | 19    |
+| **Pipelines**       | `list_pipelines`, `list_deployments`, `get_job_artifact_file_inline`        | 20    |
 | **Commits**         | `list_commits`, `get_commit`, `get_commit_diff`                             | 3     |
 | **Labels**          | `list_labels`, `create_label`, `update_label`                               | 5     |
 | **Milestones**      | `list_milestones`, `create_milestone`, burndown events                      | 10    |
