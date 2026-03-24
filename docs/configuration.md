@@ -90,7 +90,7 @@ The client will normalize each entry and rotate across them for load distributio
 | `GITLAB_READ_ONLY_MODE`                   | boolean | `false` | Disable all mutating tools (create, update, delete, merge, etc.).                                                                                       |
 | `GITLAB_ALLOWED_PROJECT_IDS`              | string  | —       | Comma-separated project IDs. If set, only these projects can be accessed. Empty = no restriction.                                                       |
 | `GITLAB_ALLOWED_TOOLS`                    | string  | —       | Comma-separated tool allowlist. Accepts names with or without `gitlab_` prefix (e.g. `get_project` or `gitlab_get_project`). Empty = all tools enabled. |
-| `GITLAB_DENIED_TOOLS_REGEX`               | string  | —       | Regex pattern to deny tools by name (example: `^gitlab_delete_`). Unsafe nested-quantifier or overly long patterns are ignored at startup.              |
+| `GITLAB_DENIED_TOOLS_REGEX`               | string  | —       | Regex pattern to deny tools by name (example: `^gitlab_delete_`). Unsafe nested-quantifier, overly long, or invalid patterns fail startup.              |
 | `GITLAB_ALLOW_GRAPHQL_WITH_PROJECT_SCOPE` | boolean | `false` | Keep GraphQL tools enabled when `GITLAB_ALLOWED_PROJECT_IDS` is set. By default, GraphQL tools are disabled in project-scoped mode.                     |
 
 ## Feature Toggles

@@ -16,19 +16,19 @@ export function compileDeniedToolsRegex(
   }
 
   if (normalizedPattern.length > MAX_DENIED_TOOLS_REGEX_LENGTH) {
-    logger.warn(
+    throwLoggedRegexError(
+      logger,
       { patternLength: normalizedPattern.length, maxLength: MAX_DENIED_TOOLS_REGEX_LENGTH },
-      "Ignoring GITLAB_DENIED_TOOLS_REGEX because it exceeds the maximum safe length"
+      `Invalid GITLAB_DENIED_TOOLS_REGEX: pattern exceeds maximum safe length of ${MAX_DENIED_TOOLS_REGEX_LENGTH} characters`
     );
-    return undefined;
   }
 
   if (NESTED_QUANTIFIER_PATTERN.test(normalizedPattern)) {
-    logger.warn(
+    throwLoggedRegexError(
+      logger,
       { pattern: normalizedPattern },
-      "Ignoring GITLAB_DENIED_TOOLS_REGEX because it appears to contain nested quantifiers"
+      "Invalid GITLAB_DENIED_TOOLS_REGEX: nested quantifiers are not allowed"
     );
-    return undefined;
   }
 
   try {
@@ -36,13 +36,22 @@ export function compileDeniedToolsRegex(
     regex.test("gitlab_list_projects");
     return regex;
   } catch (error) {
-    logger.warn(
+    throwLoggedRegexError(
+      logger,
       {
         pattern: normalizedPattern,
         error: error instanceof Error ? error.message : String(error)
       },
-      "Ignoring invalid GITLAB_DENIED_TOOLS_REGEX"
+      `Invalid GITLAB_DENIED_TOOLS_REGEX: ${error instanceof Error ? error.message : String(error)}`
     );
-    return undefined;
   }
+}
+
+function throwLoggedRegexError(
+  logger: RegexLogger,
+  context: Record<string, unknown>,
+  message: string
+): never {
+  logger.warn(context, message);
+  throw new Error(message);
 }

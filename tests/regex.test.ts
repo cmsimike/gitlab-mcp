@@ -43,22 +43,30 @@ describe("compileDeniedToolsRegex", () => {
     const logger = createLogger();
     const pattern = `^${"a".repeat(201)}$`;
 
-    expect(compileDeniedToolsRegex(pattern, logger)).toBeUndefined();
+    expect(() => compileDeniedToolsRegex(pattern, logger)).toThrow(
+      "Invalid GITLAB_DENIED_TOOLS_REGEX: pattern exceeds maximum safe length of 200 characters"
+    );
     expect(logger.warn).toHaveBeenCalledOnce();
   });
 
   it("rejects nested quantifier patterns", () => {
     const logger = createLogger();
 
-    expect(compileDeniedToolsRegex("(gitlab_.*)+$", logger)).toBeUndefined();
-    expect(compileDeniedToolsRegex("([a-z]{1,10})+$", logger)).toBeUndefined();
+    expect(() => compileDeniedToolsRegex("(gitlab_.*)+$", logger)).toThrow(
+      "Invalid GITLAB_DENIED_TOOLS_REGEX: nested quantifiers are not allowed"
+    );
+    expect(() => compileDeniedToolsRegex("([a-z]{1,10})+$", logger)).toThrow(
+      "Invalid GITLAB_DENIED_TOOLS_REGEX: nested quantifiers are not allowed"
+    );
     expect(logger.warn).toHaveBeenCalledTimes(2);
   });
 
   it("rejects invalid regex syntax", () => {
     const logger = createLogger();
 
-    expect(compileDeniedToolsRegex("[unterminated", logger)).toBeUndefined();
+    expect(() => compileDeniedToolsRegex("[unterminated", logger)).toThrow(
+      "Invalid GITLAB_DENIED_TOOLS_REGEX"
+    );
     expect(logger.warn).toHaveBeenCalledOnce();
   });
 });
