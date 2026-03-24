@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
@@ -1772,17 +1773,20 @@ export class GitLabClient {
 
     const contentType = response.headers.get("content-type") ?? "application/octet-stream";
     const disposition = response.headers.get("content-disposition") ?? "";
-    const fileName = resolveDownloadedFileName(disposition, fallbackFileName);
+    const resolvedFileName = resolveDownloadedFileName(disposition, fallbackFileName);
     const baseDirectory = localPath ? path.resolve(localPath) : process.cwd();
-    const filePath = path.join(baseDirectory, fileName);
+    const filePath = await resolveAvailableDownloadPath(baseDirectory, resolvedFileName);
+    const fileName = path.basename(filePath);
+    const tempFilePath = buildTemporaryDownloadPath(filePath);
 
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     const size = await writeResponseToFileWithLimit(
       response,
-      filePath,
+      tempFilePath,
       this.maxLocalFileBytes,
       label
     );
+    await fs.rename(tempFilePath, filePath);
 
     return {
       filePath,
@@ -2204,6 +2208,31 @@ function sanitizeDownloadedFileName(fileName: string | undefined): string | unde
   }
 
   return basename;
+}
+
+async function resolveAvailableDownloadPath(
+  baseDirectory: string,
+  fileName: string
+): Promise<string> {
+  const parsed = path.parse(fileName);
+
+  for (let suffix = 0; suffix < 10_000; suffix += 1) {
+    const candidateName =
+      suffix === 0 ? fileName : `${parsed.name || "downloaded-file"}-${suffix}${parsed.ext}`;
+    const candidatePath = path.join(baseDirectory, candidateName);
+
+    try {
+      await fs.access(candidatePath);
+    } catch {
+      return candidatePath;
+    }
+  }
+
+  throw new Error(`Unable to find an available local file name for '${fileName}'`);
+}
+
+function buildTemporaryDownloadPath(filePath: string): string {
+  return path.join(path.dirname(filePath), `.${path.basename(filePath)}.${randomUUID()}.tmp`);
 }
 
 const TEXT_CONTENT_TYPE_HINTS = [
