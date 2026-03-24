@@ -225,6 +225,23 @@ describe("MCP Server Integration - Feature flag filtering", () => {
     }
   });
 
+  it("excludes local artifact write tools when remote authorization is enabled", async () => {
+    const context = buildContext({ remoteAuthorization: true });
+    const { client, clientTransport, serverTransport } = await createLinkedPair(context);
+
+    try {
+      const result = await client.listTools();
+      const names = result.tools.map((t) => t.name);
+
+      expect(names).not.toContain("gitlab_download_job_artifacts");
+      expect(names).not.toContain("gitlab_get_job_artifact_file");
+      expect(names).toContain("gitlab_get_job_artifact_file_inline");
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+
   it("excludes release tools when release feature is disabled", async () => {
     const context = buildContext({
       enabledFeatures: { wiki: true, milestone: true, pipeline: true, release: false }

@@ -88,6 +88,7 @@ const defaultEnv: AppContext["env"] = {
 
 export interface BuildContextOptions {
   readOnlyMode?: boolean;
+  remoteAuthorization?: boolean;
   allowedTools?: string[];
   deniedToolsRegex?: RegExp;
   enabledFeatures?: typeof defaultFeatures;
@@ -110,6 +111,7 @@ export function buildContext(overrides?: BuildContextOptions): AppContext {
       MCP_SERVER_NAME: overrides?.serverName ?? defaultEnv.MCP_SERVER_NAME,
       GITLAB_PERSONAL_ACCESS_TOKEN: token,
       GITLAB_READ_ONLY_MODE: readOnlyMode,
+      REMOTE_AUTHORIZATION: overrides?.remoteAuthorization ?? defaultEnv.REMOTE_AUTHORIZATION,
       GITLAB_ALLOWED_PROJECT_IDS: overrides?.allowedProjectIds ?? [],
       GITLAB_ALLOWED_TOOLS: overrides?.allowedTools ?? [],
       GITLAB_ALLOW_GRAPHQL_WITH_PROJECT_SCOPE: overrides?.allowGraphqlWithProjectScope ?? false,
