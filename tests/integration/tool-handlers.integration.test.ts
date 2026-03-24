@@ -694,6 +694,24 @@ describe("assertAuthReady with no token", () => {
 /* ------------------------------------------------------------------ */
 
 describe("Tool handler: pipeline deployment and artifact tools", () => {
+  it("hides local artifact download tools in read-only mode", async () => {
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ readOnlyMode: true })
+    );
+
+    try {
+      const { tools } = await client.listTools();
+      const names = tools.map((tool) => tool.name);
+
+      expect(names).not.toContain("gitlab_download_job_artifacts");
+      expect(names).not.toContain("gitlab_get_job_artifact_file");
+      expect(names).toContain("gitlab_list_job_artifacts");
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+
   it("passes filters through to gitlab_list_deployments", async () => {
     const listDeployments = vi.fn().mockResolvedValue([{ id: 1, environment: { name: "prod" } }]);
 

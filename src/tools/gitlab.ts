@@ -2085,7 +2085,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_download_job_artifacts",
       title: "Download Job Artifacts",
       description: "Download the full job artifacts archive to a local directory.",
-      mutating: false,
+      mutating: true,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: z.string().optional(),
@@ -2103,7 +2103,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_job_artifact_file",
       title: "Get Job Artifact File",
       description: "Save one file from a job artifacts archive, or return inline content.",
-      mutating: false,
+      mutating: true,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: z.string().optional(),
