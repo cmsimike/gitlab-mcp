@@ -716,11 +716,12 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
     }
   });
 
-  it("returns downloaded archive content from gitlab_download_job_artifacts", async () => {
+  it("returns saved archive metadata from gitlab_download_job_artifacts", async () => {
     const downloadJobArtifacts = vi.fn().mockResolvedValue({
+      filePath: "/tmp/artifacts-job-42.zip",
       fileName: "artifacts-job-42.zip",
       contentType: "application/zip",
-      base64: Buffer.from("archive").toString("base64")
+      size: 7
     });
 
     const { client, clientTransport, serverTransport } = await createLinkedPair(
@@ -737,13 +738,14 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
       });
 
       expect(result.isError).toBeFalsy();
-      expect(downloadJobArtifacts).toHaveBeenCalledWith("group/project", "42");
+      expect(downloadJobArtifacts).toHaveBeenCalledWith("group/project", "42", undefined);
 
       const structured = (result as { structuredContent?: { result?: unknown } }).structuredContent;
       expect(structured?.result).toEqual({
+        filePath: "/tmp/artifacts-job-42.zip",
         fileName: "artifacts-job-42.zip",
         contentType: "application/zip",
-        base64: Buffer.from("archive").toString("base64")
+        size: 7
       });
     } finally {
       await clientTransport.close();
@@ -751,7 +753,50 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
     }
   });
 
-  it("passes artifact path through to gitlab_get_job_artifact_file", async () => {
+  it("saves artifact files locally by default", async () => {
+    const saveJobArtifactFile = vi.fn().mockResolvedValue({
+      filePath: "/tmp/summary.txt",
+      fileName: "summary.txt",
+      contentType: "text/plain",
+      size: 2
+    });
+
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ gitlabStub: { saveJobArtifactFile } })
+    );
+
+    try {
+      const result = await client.callTool({
+        name: "gitlab_get_job_artifact_file",
+        arguments: {
+          project_id: "group/project",
+          job_id: "99",
+          artifact_path: "reports/summary.txt"
+        }
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(saveJobArtifactFile).toHaveBeenCalledWith(
+        "group/project",
+        "99",
+        "reports/summary.txt",
+        undefined
+      );
+
+      const structured = (result as { structuredContent?: { result?: unknown } }).structuredContent;
+      expect(structured?.result).toEqual({
+        filePath: "/tmp/summary.txt",
+        fileName: "summary.txt",
+        contentType: "text/plain",
+        size: 2
+      });
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+
+  it("returns inline artifact content when inline=true", async () => {
     const getJobArtifactFile = vi.fn().mockResolvedValue({
       fileName: "summary.txt",
       contentType: "text/plain",
@@ -769,7 +814,8 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
         arguments: {
           project_id: "group/project",
           job_id: "99",
-          artifact_path: "reports/summary.txt"
+          artifact_path: "reports/summary.txt",
+          inline: true
         }
       });
 

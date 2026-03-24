@@ -1,14 +1,20 @@
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
+
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { GitLabApiError, GitLabClient, getEffectiveSessionAuth } from "../src/lib/gitlab-client.js";
 import { runWithSessionAuth } from "../src/lib/auth-context.js";
 
 const fetchMock = vi.fn();
+const tempDirs: string[] = [];
 
 vi.stubGlobal("fetch", fetchMock);
 
-afterEach(() => {
+afterEach(async () => {
   fetchMock.mockReset();
+  await Promise.all(tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
 
 afterAll(() => {
@@ -29,6 +35,12 @@ function textResponse(text: string, status = 200) {
     statusText: status === 200 ? "OK" : "Error",
     headers: { "content-type": "text/plain" }
   });
+}
+
+async function createTempDir(prefix: string) {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
 }
 
 describe("GitLabClient", () => {
@@ -839,7 +851,7 @@ describe("GitLabClient", () => {
       expect(url.searchParams.get("recursive")).toBe("true");
     });
 
-    it("downloads job artifacts as base64 content", async () => {
+    it("downloads job artifacts to a local directory", async () => {
       fetchMock.mockResolvedValue(
         new Response("PK\x03\x04", {
           status: 200,
@@ -850,11 +862,14 @@ describe("GitLabClient", () => {
       );
 
       const client = new GitLabClient("https://gitlab.example.com", "token");
-      const result = await client.downloadJobArtifacts("proj", "456");
+      const outputDir = await createTempDir("gitlab-job-artifacts-");
+      const result = await client.downloadJobArtifacts("proj", "456", outputDir);
 
       expect(result.fileName).toBe("artifacts-job-456.zip");
       expect(result.contentType).toBe("application/zip");
-      expect(Buffer.from(result.base64, "base64").toString("binary")).toBe("PK\x03\x04");
+      expect(result.filePath).toBe(path.join(outputDir, "artifacts-job-456.zip"));
+      expect(result.size).toBe(4);
+      await expect(fs.readFile(result.filePath, "binary")).resolves.toBe("PK\x03\x04");
     });
 
     it("returns UTF-8 content for text artifact files", async () => {
@@ -899,6 +914,31 @@ describe("GitLabClient", () => {
       expect(result.contentType).toBe("application/octet-stream");
       expect(result.encoding).toBe("base64");
       expect(Buffer.from(result.content, "base64")).toEqual(Buffer.from([0, 1, 2, 3]));
+    });
+
+    it("saves artifact files to a local directory", async () => {
+      fetchMock.mockResolvedValue(
+        new Response("coverage: 99%\n", {
+          status: 200,
+          headers: {
+            "content-type": "text/plain"
+          }
+        })
+      );
+
+      const client = new GitLabClient("https://gitlab.example.com", "token");
+      const outputDir = await createTempDir("gitlab-artifact-file-");
+      const result = await client.saveJobArtifactFile(
+        "proj",
+        "791",
+        "reports/summary.txt",
+        outputDir
+      );
+
+      expect(result.fileName).toBe("summary.txt");
+      expect(result.filePath).toBe(path.join(outputDir, "summary.txt"));
+      expect(result.size).toBe(Buffer.byteLength("coverage: 99%\n"));
+      await expect(fs.readFile(result.filePath, "utf8")).resolves.toBe("coverage: 99%\n");
     });
 
     it("gets commit diff", async () => {

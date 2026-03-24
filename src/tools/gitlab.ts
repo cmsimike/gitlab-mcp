@@ -2074,36 +2074,50 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
     {
       name: "gitlab_download_job_artifacts",
       title: "Download Job Artifacts",
-      description: "Download the full job artifacts archive as base64 content.",
-      mutating: false,
-      requiresFeature: "pipeline",
-      inputSchema: {
-        project_id: z.string().optional(),
-        job_id: z.string().min(1)
-      },
-      handler: async (args, context) =>
-        context.gitlab.downloadJobArtifacts(
-          resolveProjectId(args, context, true),
-          getString(args, "job_id")
-        )
-    },
-    {
-      name: "gitlab_get_job_artifact_file",
-      title: "Get Job Artifact File",
-      description: "Get one file from a job artifacts archive.",
+      description: "Download the full job artifacts archive to a local directory.",
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: z.string().optional(),
         job_id: z.string().min(1),
-        artifact_path: z.string().min(1)
+        local_path: optionalString
       },
       handler: async (args, context) =>
-        context.gitlab.getJobArtifactFile(
+        context.gitlab.downloadJobArtifacts(
           resolveProjectId(args, context, true),
           getString(args, "job_id"),
-          getString(args, "artifact_path")
+          getOptionalString(args, "local_path")
         )
+    },
+    {
+      name: "gitlab_get_job_artifact_file",
+      title: "Get Job Artifact File",
+      description: "Save one file from a job artifacts archive, or return inline content.",
+      mutating: false,
+      requiresFeature: "pipeline",
+      inputSchema: {
+        project_id: z.string().optional(),
+        job_id: z.string().min(1),
+        artifact_path: z.string().min(1),
+        local_path: optionalString,
+        inline: optionalBoolean
+      },
+      handler: async (args, context) => {
+        const projectId = resolveProjectId(args, context, true);
+        const jobId = getString(args, "job_id");
+        const artifactPath = getString(args, "artifact_path");
+
+        if (getOptionalBoolean(args, "inline") === true) {
+          return context.gitlab.getJobArtifactFile(projectId, jobId, artifactPath);
+        }
+
+        return context.gitlab.saveJobArtifactFile(
+          projectId,
+          jobId,
+          artifactPath,
+          getOptionalString(args, "local_path")
+        );
+      }
     },
     {
       name: "gitlab_create_pipeline",

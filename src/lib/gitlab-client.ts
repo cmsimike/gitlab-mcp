@@ -76,6 +76,13 @@ export interface GitLabDownloadedFile {
   base64: string;
 }
 
+export interface GitLabSavedFile {
+  filePath: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+}
+
 export interface GitLabArtifactFileContent {
   fileName: string;
   contentType: string;
@@ -1216,15 +1223,16 @@ export class GitLabClient {
   async downloadJobArtifacts(
     projectId: string,
     jobId: string,
+    localPath?: string,
     options: GitLabRequestOptions = {}
-  ): Promise<GitLabDownloadedFile> {
+  ): Promise<GitLabSavedFile> {
     const requestConfig = this.resolveRequestConfig(options);
     const url = new URL(
       `projects/${encode(projectId)}/jobs/${encode(jobId)}/artifacts`,
       `${requestConfig.apiUrl}/`
     );
 
-    return this.downloadFile(
+    return this.saveDownloadedFile(
       url,
       {
         headers: options.headers,
@@ -1232,7 +1240,8 @@ export class GitLabClient {
         authHeader: requestConfig.authHeader
       },
       "Job artifacts",
-      `artifacts-job-${jobId}.zip`
+      `artifacts-job-${jobId}.zip`,
+      localPath
     );
   }
 
@@ -1258,6 +1267,33 @@ export class GitLabClient {
       },
       "Job artifact file",
       path.basename(artifactPath) || `artifact-${jobId}`
+    );
+  }
+
+  async saveJobArtifactFile(
+    projectId: string,
+    jobId: string,
+    artifactPath: string,
+    localPath?: string,
+    options: GitLabRequestOptions = {}
+  ): Promise<GitLabSavedFile> {
+    const requestConfig = this.resolveRequestConfig(options);
+    const encodedArtifactPath = encodeSlashPath(artifactPath);
+    const url = new URL(
+      `projects/${encode(projectId)}/jobs/${encode(jobId)}/artifacts/${encodedArtifactPath}`,
+      `${requestConfig.apiUrl}/`
+    );
+
+    return this.saveDownloadedFile(
+      url,
+      {
+        headers: options.headers,
+        token: requestConfig.token,
+        authHeader: requestConfig.authHeader
+      },
+      "Job artifact file",
+      path.basename(artifactPath) || `artifact-${jobId}`,
+      localPath
     );
   }
 
@@ -1701,6 +1737,48 @@ export class GitLabClient {
       fileName,
       contentType,
       base64: bytes.toString("base64")
+    };
+  }
+
+  private async saveDownloadedFile(
+    url: URL,
+    options: {
+      headers?: HeadersInit;
+      token?: string;
+      authHeader?: GitLabAuthHeader;
+    },
+    label: string,
+    fallbackFileName: string,
+    localPath?: string
+  ): Promise<GitLabSavedFile> {
+    const response = await this.fetchRawResponse(url, {
+      method: "GET",
+      headers: options.headers,
+      token: options.token,
+      authHeader: options.authHeader
+    });
+
+    if (!response.ok) {
+      throw await this.toDownloadError(response, label);
+    }
+
+    assertContentLengthWithinLimit(response, this.maxAttachmentBytes, label);
+
+    const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const fileName = extractFileName(disposition) ?? fallbackFileName;
+    const bytes = await readResponseBytesWithLimit(response, this.maxAttachmentBytes, label);
+    const baseDirectory = localPath ? path.resolve(localPath) : process.cwd();
+    const filePath = path.join(baseDirectory, fileName);
+
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, bytes);
+
+    return {
+      filePath,
+      fileName,
+      contentType,
+      size: bytes.length
     };
   }
 

@@ -222,8 +222,8 @@ Requires `USE_PIPELINE=true` (default).
 | `gitlab_get_pipeline_job`           | No       | Get one job by ID.                                                                                                                             |
 | `gitlab_get_pipeline_job_output`    | No       | Get raw job trace/log output.                                                                                                                  |
 | `gitlab_list_job_artifacts`         | No       | List files and directories inside a job artifacts archive. Supports `path`, `recursive`.                                                       |
-| `gitlab_download_job_artifacts`     | No       | Download the full artifacts archive and return base64 content plus metadata.                                                                   |
-| `gitlab_get_job_artifact_file`      | No       | Get one file from a job artifacts archive. Returns UTF-8 text when safe, otherwise base64.                                                     |
+| `gitlab_download_job_artifacts`     | No       | Download the full artifacts archive to a local directory. Supports `local_path`.                                                               |
+| `gitlab_get_job_artifact_file`      | No       | Save one file from a job artifacts archive by default. Supports `local_path`; set `inline=true` to return content directly.                    |
 | `gitlab_create_pipeline`            | **Yes**  | Trigger a new pipeline. Params: `ref` (required). Supports `variables` array (`key`, `value`, `variable_type`) and `inputs` for `spec:inputs`. |
 | `gitlab_retry_pipeline`             | **Yes**  | Retry failed jobs in a pipeline.                                                                                                               |
 | `gitlab_cancel_pipeline`            | **Yes**  | Cancel a running pipeline.                                                                                                                     |
