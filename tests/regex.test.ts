@@ -51,7 +51,8 @@ describe("compileDeniedToolsRegex", () => {
     const logger = createLogger();
 
     expect(compileDeniedToolsRegex("(gitlab_.*)+$", logger)).toBeUndefined();
-    expect(logger.warn).toHaveBeenCalledOnce();
+    expect(compileDeniedToolsRegex("([a-z]{1,10})+$", logger)).toBeUndefined();
+    expect(logger.warn).toHaveBeenCalledTimes(2);
   });
 
   it("rejects invalid regex syntax", () => {
