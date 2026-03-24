@@ -4,7 +4,7 @@ interface RegexLogger {
 
 const MAX_DENIED_TOOLS_REGEX_LENGTH = 200;
 const NESTED_QUANTIFIER_PATTERN =
-  /(\((?:[^()\\]|\\.)*[+*?](?:[^()\\]|\\.)*\)|\[[^\]]+\])(?:[+*?]|\{\d+(?:,\d*)?\})/;
+  /\((?:[^()\\]|\\.)*[+*?](?:[^()\\]|\\.)*\)(?:[+*?]|\{\d+(?:,\d*)?\})/;
 
 export function compileDeniedToolsRegex(
   pattern: string | undefined,

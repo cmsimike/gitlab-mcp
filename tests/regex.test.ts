@@ -26,6 +26,19 @@ describe("compileDeniedToolsRegex", () => {
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
+  it("allows character classes followed by quantifiers", () => {
+    const logger = createLogger();
+
+    const alphaRegex = compileDeniedToolsRegex("^gitlab_[a-z]+$", logger);
+    const mixedRegex = compileDeniedToolsRegex("^gitlab_(foo|bar)[0-9]+$", logger);
+
+    expect(alphaRegex).toBeInstanceOf(RegExp);
+    expect(alphaRegex?.test("gitlab_delete")).toBe(true);
+    expect(mixedRegex).toBeInstanceOf(RegExp);
+    expect(mixedRegex?.test("gitlab_foo123")).toBe(true);
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
   it("rejects overly long patterns", () => {
     const logger = createLogger();
     const pattern = `^${"a".repeat(201)}$`;
