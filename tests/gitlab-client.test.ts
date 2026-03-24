@@ -876,6 +876,26 @@ describe("GitLabClient", () => {
       await expect(fs.readFile(result.filePath, "binary")).resolves.toBe("PK\x03\x04");
     });
 
+    it("sanitizes downloaded artifact filenames before saving locally", async () => {
+      fetchMock.mockResolvedValue(
+        new Response("safe\n", {
+          status: 200,
+          headers: {
+            "content-type": "text/plain",
+            "content-disposition": 'attachment; filename="../../outside.txt"'
+          }
+        })
+      );
+
+      const client = new GitLabClient("https://gitlab.example.com", "token");
+      const outputDir = await createTempDir("gitlab-artifact-safe-name-");
+      const result = await client.downloadJobArtifacts("proj", "457", outputDir);
+
+      expect(result.fileName).toBe("outside.txt");
+      expect(result.filePath).toBe(path.join(outputDir, "outside.txt"));
+      await expect(fs.readFile(result.filePath, "utf8")).resolves.toBe("safe\n");
+    });
+
     it("returns UTF-8 content for text artifact files", async () => {
       fetchMock.mockResolvedValue(
         new Response("coverage: 99%\n", {

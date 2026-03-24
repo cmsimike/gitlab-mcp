@@ -1768,7 +1768,7 @@ export class GitLabClient {
 
     const contentType = response.headers.get("content-type") ?? "application/octet-stream";
     const disposition = response.headers.get("content-disposition") ?? "";
-    const fileName = extractFileName(disposition) ?? fallbackFileName;
+    const fileName = resolveDownloadedFileName(disposition, fallbackFileName);
     const bytes = await readResponseBytesWithLimit(response, this.maxAttachmentBytes, label);
     const baseDirectory = localPath ? path.resolve(localPath) : process.cwd();
     const filePath = path.join(baseDirectory, fileName);
@@ -2176,6 +2176,26 @@ function extractFileName(contentDisposition: string): string | undefined {
   }
 
   return decodeURIComponent(quoted[1] ?? "");
+}
+
+function resolveDownloadedFileName(contentDisposition: string, fallbackFileName: string): string {
+  const extracted = extractFileName(contentDisposition);
+  const sanitized = sanitizeDownloadedFileName(extracted);
+  return sanitized ?? sanitizeDownloadedFileName(fallbackFileName) ?? "downloaded-file";
+}
+
+function sanitizeDownloadedFileName(fileName: string | undefined): string | undefined {
+  if (!fileName) {
+    return undefined;
+  }
+
+  const normalized = fileName.replace(/\\/g, "/");
+  const basename = path.posix.basename(normalized).trim();
+  if (!basename || basename === "." || basename === "..") {
+    return undefined;
+  }
+
+  return basename;
 }
 
 const TEXT_CONTENT_TYPE_HINTS = [
