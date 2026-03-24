@@ -496,7 +496,12 @@ describe("Tool handler: gitlab_create_pipeline", () => {
         arguments: {
           project_id: "group/project",
           ref: "main",
-          inputs: { environment: "production" },
+          inputs: {
+            environment: "production",
+            approvals_required: 2,
+            dry_run: false,
+            regions: ["cn", "us-east"]
+          },
           variables: [{ key: "DEPLOY", value: "true" }]
         }
       });
@@ -504,7 +509,12 @@ describe("Tool handler: gitlab_create_pipeline", () => {
       expect(result.isError).toBeFalsy();
       expect(createPipeline).toHaveBeenCalledWith("group/project", {
         ref: "main",
-        inputs: { environment: "production" },
+        inputs: {
+          environment: "production",
+          approvals_required: 2,
+          dry_run: false,
+          regions: ["cn", "us-east"]
+        },
         variables: [{ key: "DEPLOY", value: "true" }]
       });
     } finally {

@@ -764,7 +764,7 @@ describe("GitLabClient", () => {
       expect(body.variables).toEqual([{ key: "ENV", value: "production" }]);
     });
 
-    it("creates pipeline with spec inputs", async () => {
+    it("creates pipeline with typed spec inputs", async () => {
       fetchMock.mockResolvedValue(jsonResponse({ id: 2 }));
 
       const client = new GitLabClient("https://gitlab.example.com", "token");
@@ -772,7 +772,9 @@ describe("GitLabClient", () => {
         ref: "release",
         inputs: {
           environment: "production",
-          region: "cn"
+          approvals_required: 2,
+          dry_run: false,
+          regions: ["cn", "us-east"]
         }
       });
 
@@ -781,7 +783,9 @@ describe("GitLabClient", () => {
       expect(body.ref).toBe("release");
       expect(body.inputs).toEqual({
         environment: "production",
-        region: "cn"
+        approvals_required: 2,
+        dry_run: false,
+        regions: ["cn", "us-east"]
       });
     });
 

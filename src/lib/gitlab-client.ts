@@ -90,6 +90,8 @@ export interface GitLabArtifactFileContent {
   content: string;
 }
 
+export type GitLabPipelineInputValue = string | number | boolean | Array<string | number | boolean>;
+
 export class GitLabApiError extends Error {
   constructor(
     message: string,
@@ -1302,7 +1304,7 @@ export class GitLabClient {
     payload: {
       ref: string;
       variables?: Array<{ key: string; value: string; variable_type?: "env_var" | "file" }>;
-      inputs?: Record<string, string>;
+      inputs?: Record<string, GitLabPipelineInputValue>;
     },
     options: GitLabRequestOptions = {}
   ): Promise<unknown> {

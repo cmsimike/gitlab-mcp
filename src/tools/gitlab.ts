@@ -3,7 +3,11 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Kind, parse } from "graphql";
 import { z } from "zod";
 
-import { GitLabApiError, type PushFileAction } from "../lib/gitlab-client.js";
+import {
+  GitLabApiError,
+  type GitLabPipelineInputValue,
+  type PushFileAction
+} from "../lib/gitlab-client.js";
 import { getSessionAuth } from "../lib/auth-context.js";
 import { stripNullsDeep } from "../lib/sanitize.js";
 import type { AppContext } from "../types/context.js";
@@ -56,9 +60,15 @@ const optionalRecord = z.preprocess(
   (value) => (value === null ? undefined : value),
   z.record(z.string(), z.unknown()).optional()
 );
-const optionalStringRecord = z.preprocess(
+const pipelineInputValueSchema = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.array(z.union([z.string(), z.number(), z.boolean()]))
+]);
+const optionalPipelineInputsRecord = z.preprocess(
   (value) => (value === null ? undefined : value),
-  z.record(z.string(), z.string()).optional()
+  z.record(z.string(), pipelineInputValueSchema).optional()
 );
 
 const paginationShape = {
@@ -2128,7 +2138,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       inputSchema: {
         project_id: z.string().optional(),
         ref: z.string().min(1),
-        inputs: optionalStringRecord,
+        inputs: optionalPipelineInputsRecord,
         variables: z
           .array(
             z.object({
@@ -2142,7 +2152,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       handler: async (args, context) =>
         context.gitlab.createPipeline(resolveProjectId(args, context, true), {
           ref: getString(args, "ref"),
-          inputs: getOptionalStringRecord(args, "inputs"),
+          inputs: getOptionalPipelineInputsRecord(args, "inputs"),
           variables: getOptionalArray(args, "variables") as
             | Array<{
                 key: string;
@@ -3351,19 +3361,24 @@ function getOptionalRecord(args: ToolArgs, key: string): Record<string, unknown>
   return value as Record<string, unknown>;
 }
 
-function getOptionalStringRecord(args: ToolArgs, key: string): Record<string, string> | undefined {
+function getOptionalPipelineInputsRecord(
+  args: ToolArgs,
+  key: string
+): Record<string, GitLabPipelineInputValue> | undefined {
   const value = getOptionalRecord(args, key);
   if (!value) {
     return undefined;
   }
 
   for (const [entryKey, entryValue] of Object.entries(value)) {
-    if (typeof entryValue !== "string") {
-      throw new Error(`'${key}.${entryKey}' must be a string`);
+    if (!pipelineInputValueSchema.safeParse(entryValue).success) {
+      throw new Error(
+        `'${key}.${entryKey}' must be a string, number, boolean, or array of primitive values`
+      );
     }
   }
 
-  return value as Record<string, string>;
+  return value as Record<string, GitLabPipelineInputValue>;
 }
 
 function cleanMergeRequestListArgs(args: ToolArgs): ToolArgs {

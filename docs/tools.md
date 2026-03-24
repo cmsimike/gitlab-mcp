@@ -209,27 +209,27 @@ Requires `USE_GITLAB_WIKI=true` (default).
 
 Requires `USE_PIPELINE=true` (default).
 
-| Tool                                | Mutating | Description                                                                                                                                    |
-| ----------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `gitlab_list_pipelines`             | No       | List pipelines. Supports `scope`, `status`, `ref`, `sha`, `username`, `source`, `order_by`, `sort`, date filters.                              |
-| `gitlab_get_pipeline`               | No       | Get one pipeline by ID.                                                                                                                        |
-| `gitlab_list_deployments`           | No       | List deployments. Supports `environment`, `ref`, `sha`, `status`, `order_by`, `sort`, date filters.                                            |
-| `gitlab_get_deployment`             | No       | Get one deployment by ID.                                                                                                                      |
-| `gitlab_list_environments`          | No       | List environments. Supports `name`, `search`, `states`, pagination.                                                                            |
-| `gitlab_get_environment`            | No       | Get one environment by ID.                                                                                                                     |
-| `gitlab_list_pipeline_jobs`         | No       | List jobs in a pipeline. Supports `scope`, `include_retried`.                                                                                  |
-| `gitlab_list_pipeline_trigger_jobs` | No       | List downstream/bridge trigger jobs in a pipeline.                                                                                             |
-| `gitlab_get_pipeline_job`           | No       | Get one job by ID.                                                                                                                             |
-| `gitlab_get_pipeline_job_output`    | No       | Get raw job trace/log output.                                                                                                                  |
-| `gitlab_list_job_artifacts`         | No       | List files and directories inside a job artifacts archive. Supports `path`, `recursive`.                                                       |
-| `gitlab_download_job_artifacts`     | No       | Download the full artifacts archive to a local directory. Supports `local_path`.                                                               |
-| `gitlab_get_job_artifact_file`      | No       | Save one file from a job artifacts archive by default. Supports `local_path`; set `inline=true` to return content directly.                    |
-| `gitlab_create_pipeline`            | **Yes**  | Trigger a new pipeline. Params: `ref` (required). Supports `variables` array (`key`, `value`, `variable_type`) and `inputs` for `spec:inputs`. |
-| `gitlab_retry_pipeline`             | **Yes**  | Retry failed jobs in a pipeline.                                                                                                               |
-| `gitlab_cancel_pipeline`            | **Yes**  | Cancel a running pipeline.                                                                                                                     |
-| `gitlab_retry_pipeline_job`         | **Yes**  | Retry one failed job.                                                                                                                          |
-| `gitlab_cancel_pipeline_job`        | **Yes**  | Cancel one running job.                                                                                                                        |
-| `gitlab_play_pipeline_job`          | **Yes**  | Play/trigger a manual job.                                                                                                                     |
+| Tool                                | Mutating | Description                                                                                                                                                                                  |
+| ----------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gitlab_list_pipelines`             | No       | List pipelines. Supports `scope`, `status`, `ref`, `sha`, `username`, `source`, `order_by`, `sort`, date filters.                                                                            |
+| `gitlab_get_pipeline`               | No       | Get one pipeline by ID.                                                                                                                                                                      |
+| `gitlab_list_deployments`           | No       | List deployments. Supports `environment`, `ref`, `sha`, `status`, `order_by`, `sort`, date filters.                                                                                          |
+| `gitlab_get_deployment`             | No       | Get one deployment by ID.                                                                                                                                                                    |
+| `gitlab_list_environments`          | No       | List environments. Supports `name`, `search`, `states`, pagination.                                                                                                                          |
+| `gitlab_get_environment`            | No       | Get one environment by ID.                                                                                                                                                                   |
+| `gitlab_list_pipeline_jobs`         | No       | List jobs in a pipeline. Supports `scope`, `include_retried`.                                                                                                                                |
+| `gitlab_list_pipeline_trigger_jobs` | No       | List downstream/bridge trigger jobs in a pipeline.                                                                                                                                           |
+| `gitlab_get_pipeline_job`           | No       | Get one job by ID.                                                                                                                                                                           |
+| `gitlab_get_pipeline_job_output`    | No       | Get raw job trace/log output.                                                                                                                                                                |
+| `gitlab_list_job_artifacts`         | No       | List files and directories inside a job artifacts archive. Supports `path`, `recursive`.                                                                                                     |
+| `gitlab_download_job_artifacts`     | No       | Download the full artifacts archive to a local directory. Supports `local_path`.                                                                                                             |
+| `gitlab_get_job_artifact_file`      | No       | Save one file from a job artifacts archive by default. Supports `local_path`; set `inline=true` to return content directly.                                                                  |
+| `gitlab_create_pipeline`            | **Yes**  | Trigger a new pipeline. Params: `ref` (required). Supports `variables` array (`key`, `value`, `variable_type`) and typed `inputs` for `spec:inputs` (`string`, `number`, `boolean`, arrays). |
+| `gitlab_retry_pipeline`             | **Yes**  | Retry failed jobs in a pipeline.                                                                                                                                                             |
+| `gitlab_cancel_pipeline`            | **Yes**  | Cancel a running pipeline.                                                                                                                                                                   |
+| `gitlab_retry_pipeline_job`         | **Yes**  | Retry one failed job.                                                                                                                                                                        |
+| `gitlab_cancel_pipeline_job`        | **Yes**  | Cancel one running job.                                                                                                                                                                      |
+| `gitlab_play_pipeline_job`          | **Yes**  | Play/trigger a manual job.                                                                                                                                                                   |
 
 ---
 
