@@ -233,7 +233,8 @@ describe("MCP Server Integration - Feature flag filtering", () => {
       const result = await client.listTools();
       const names = result.tools.map((t) => t.name);
 
-      expect(names).not.toContain("gitlab_download_job_artifacts");
+      expect(names).toContain("gitlab_download_job_artifacts");
+      expect(names).not.toContain("gitlab_download_job_artifacts_local");
       expect(names).not.toContain("gitlab_get_job_artifact_file");
       expect(names).toContain("gitlab_get_job_artifact_file_inline");
     } finally {

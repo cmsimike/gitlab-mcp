@@ -703,7 +703,8 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
       const { tools } = await client.listTools();
       const names = tools.map((tool) => tool.name);
 
-      expect(names).not.toContain("gitlab_download_job_artifacts");
+      expect(names).toContain("gitlab_download_job_artifacts");
+      expect(names).not.toContain("gitlab_download_job_artifacts_local");
       expect(names).not.toContain("gitlab_get_job_artifact_file");
       expect(names).toContain("gitlab_get_job_artifact_file_inline");
       expect(names).toContain("gitlab_list_job_artifacts");
@@ -745,12 +746,11 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
     }
   });
 
-  it("returns saved archive metadata from gitlab_download_job_artifacts", async () => {
+  it("returns inline archive content from gitlab_download_job_artifacts", async () => {
     const downloadJobArtifacts = vi.fn().mockResolvedValue({
-      filePath: "/tmp/artifacts-job-42.zip",
       fileName: "artifacts-job-42.zip",
       contentType: "application/zip",
-      size: 7
+      base64: "UEsDBA=="
     });
 
     const { client, clientTransport, serverTransport } = await createLinkedPair(
@@ -767,7 +767,43 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
       });
 
       expect(result.isError).toBeFalsy();
-      expect(downloadJobArtifacts).toHaveBeenCalledWith("group/project", "42", undefined);
+      expect(downloadJobArtifacts).toHaveBeenCalledWith("group/project", "42");
+
+      const structured = (result as { structuredContent?: { result?: unknown } }).structuredContent;
+      expect(structured?.result).toEqual({
+        fileName: "artifacts-job-42.zip",
+        contentType: "application/zip",
+        base64: "UEsDBA=="
+      });
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+
+  it("returns saved archive metadata from gitlab_download_job_artifacts_local", async () => {
+    const saveJobArtifacts = vi.fn().mockResolvedValue({
+      filePath: "/tmp/artifacts-job-42.zip",
+      fileName: "artifacts-job-42.zip",
+      contentType: "application/zip",
+      size: 7
+    });
+
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ gitlabStub: { saveJobArtifacts } })
+    );
+
+    try {
+      const result = await client.callTool({
+        name: "gitlab_download_job_artifacts_local",
+        arguments: {
+          project_id: "group/project",
+          job_id: "42"
+        }
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(saveJobArtifacts).toHaveBeenCalledWith("group/project", "42", undefined);
 
       const structured = (result as { structuredContent?: { result?: unknown } }).structuredContent;
       expect(structured?.result).toEqual({

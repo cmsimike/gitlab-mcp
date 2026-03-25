@@ -2089,6 +2089,22 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
     {
       name: "gitlab_download_job_artifacts",
       title: "Download Job Artifacts",
+      description: "Download the full job artifacts archive as base64 content.",
+      mutating: false,
+      requiresFeature: "pipeline",
+      inputSchema: {
+        project_id: z.string().optional(),
+        job_id: z.string().min(1)
+      },
+      handler: async (args, context) =>
+        context.gitlab.downloadJobArtifacts(
+          resolveProjectId(args, context, true),
+          getString(args, "job_id")
+        )
+    },
+    {
+      name: "gitlab_download_job_artifacts_local",
+      title: "Download Job Artifacts Local",
       description: "Download the full job artifacts archive to a local directory.",
       mutating: true,
       requiresFeature: "pipeline",
@@ -2099,7 +2115,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
         local_path: optionalString
       },
       handler: async (args, context) =>
-        context.gitlab.downloadJobArtifacts(
+        context.gitlab.saveJobArtifacts(
           resolveProjectId(args, context, true),
           getString(args, "job_id"),
           getOptionalString(args, "local_path")

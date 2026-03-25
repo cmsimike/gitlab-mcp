@@ -855,6 +855,51 @@ describe("GitLabClient", () => {
       expect(url.searchParams.get("recursive")).toBe("true");
     });
 
+    it("downloads job artifacts as base64 content", async () => {
+      fetchMock.mockResolvedValue(
+        new Response("PK\x03\x04", {
+          status: 200,
+          headers: {
+            "content-type": "application/zip"
+          }
+        })
+      );
+
+      const client = new GitLabClient("https://gitlab.example.com", "token");
+      const result = await client.downloadJobArtifacts("proj", "456");
+
+      expect(result.fileName).toBe("artifacts-job-456.zip");
+      expect(result.contentType).toBe("application/zip");
+      expect(Buffer.from(result.base64, "base64")).toEqual(Buffer.from("PK\x03\x04"));
+    });
+
+    it("downloads streamed job artifacts with the attachment size limit", async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("12345"));
+          controller.enqueue(new TextEncoder().encode("67890"));
+          controller.close();
+        }
+      });
+      fetchMock.mockResolvedValue(
+        new Response(stream, {
+          status: 200,
+          headers: {
+            "content-type": "application/zip"
+          }
+        })
+      );
+
+      const client = new GitLabClient("https://gitlab.example.com", "token", {
+        maxAttachmentBytes: 8,
+        maxLocalFileBytes: 10
+      });
+      const error = await client.downloadJobArtifacts("proj", "458").catch((reason) => reason);
+
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain("exceeds limit");
+    });
+
     it("downloads job artifacts to a local directory", async () => {
       fetchMock.mockResolvedValue(
         new Response("PK\x03\x04", {
@@ -867,7 +912,7 @@ describe("GitLabClient", () => {
 
       const client = new GitLabClient("https://gitlab.example.com", "token");
       const outputDir = await createTempDir("gitlab-job-artifacts-");
-      const result = await client.downloadJobArtifacts("proj", "456", outputDir);
+      const result = await client.saveJobArtifacts("proj", "456", outputDir);
 
       expect(result.fileName).toBe("artifacts-job-456.zip");
       expect(result.contentType).toBe("application/zip");
@@ -898,7 +943,7 @@ describe("GitLabClient", () => {
         maxLocalFileBytes: 10
       });
       const outputDir = await createTempDir("gitlab-job-artifacts-streamed-");
-      const result = await client.downloadJobArtifacts("proj", "458", outputDir);
+      const result = await client.saveJobArtifacts("proj", "458", outputDir);
 
       expect(result.filePath).toBe(path.join(outputDir, "artifacts-job-458.zip"));
       expect(result.size).toBe(10);
@@ -918,7 +963,7 @@ describe("GitLabClient", () => {
 
       const client = new GitLabClient("https://gitlab.example.com", "token");
       const outputDir = await createTempDir("gitlab-artifact-safe-name-");
-      const result = await client.downloadJobArtifacts("proj", "457", outputDir);
+      const result = await client.saveJobArtifacts("proj", "457", outputDir);
 
       expect(result.fileName).toBe("outside.txt");
       expect(result.filePath).toBe(path.join(outputDir, "outside.txt"));
@@ -940,7 +985,7 @@ describe("GitLabClient", () => {
       const existingFilePath = path.join(outputDir, "artifacts-job-457.zip");
       await fs.writeFile(existingFilePath, "existing artifact\n", "utf8");
 
-      const result = await client.downloadJobArtifacts("proj", "457", outputDir);
+      const result = await client.saveJobArtifacts("proj", "457", outputDir);
 
       expect(result.fileName).toBe("artifacts-job-457-1.zip");
       expect(result.filePath).toBe(path.join(outputDir, "artifacts-job-457-1.zip"));
@@ -975,7 +1020,7 @@ describe("GitLabClient", () => {
       const outputDir = await createTempDir("gitlab-job-artifacts-limit-");
       const filePath = path.join(outputDir, "artifacts-job-459.zip");
       const error = await client
-        .downloadJobArtifacts("proj", "459", outputDir)
+        .saveJobArtifacts("proj", "459", outputDir)
         .catch((reason) => reason);
 
       expect(error).toBeInstanceOf(Error);
@@ -1008,7 +1053,7 @@ describe("GitLabClient", () => {
       await fs.writeFile(existingFilePath, "keep me\n", "utf8");
 
       const error = await client
-        .downloadJobArtifacts("proj", "460", outputDir)
+        .saveJobArtifacts("proj", "460", outputDir)
         .catch((reason) => reason);
 
       expect(error).toBeInstanceOf(Error);

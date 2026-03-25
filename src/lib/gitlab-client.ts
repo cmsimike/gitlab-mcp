@@ -1231,6 +1231,29 @@ export class GitLabClient {
   async downloadJobArtifacts(
     projectId: string,
     jobId: string,
+    options: GitLabRequestOptions = {}
+  ): Promise<GitLabDownloadedFile> {
+    const requestConfig = this.resolveRequestConfig(options);
+    const url = new URL(
+      `projects/${encode(projectId)}/jobs/${encode(jobId)}/artifacts`,
+      `${requestConfig.apiUrl}/`
+    );
+
+    return this.downloadFile(
+      url,
+      {
+        headers: options.headers,
+        token: requestConfig.token,
+        authHeader: requestConfig.authHeader
+      },
+      "Job artifacts",
+      `artifacts-job-${jobId}.zip`
+    );
+  }
+
+  async saveJobArtifacts(
+    projectId: string,
+    jobId: string,
     localPath?: string,
     options: GitLabRequestOptions = {}
   ): Promise<GitLabSavedFile> {
