@@ -825,6 +825,47 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
     }
   });
 
+  it("preserves inline=true compatibility on gitlab_get_job_artifact_file", async () => {
+    const getJobArtifactFile = vi.fn().mockResolvedValue({
+      fileName: "summary.txt",
+      contentType: "text/plain",
+      encoding: "utf8",
+      content: "ok"
+    });
+    const saveJobArtifactFile = vi.fn();
+
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ gitlabStub: { getJobArtifactFile, saveJobArtifactFile } })
+    );
+
+    try {
+      const result = await client.callTool({
+        name: "gitlab_get_job_artifact_file",
+        arguments: {
+          project_id: "group/project",
+          job_id: "99",
+          artifact_path: "reports/summary.txt",
+          inline: true
+        }
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(getJobArtifactFile).toHaveBeenCalledWith("group/project", "99", "reports/summary.txt");
+      expect(saveJobArtifactFile).not.toHaveBeenCalled();
+
+      const structured = (result as { structuredContent?: { result?: unknown } }).structuredContent;
+      expect(structured?.result).toEqual({
+        fileName: "summary.txt",
+        contentType: "text/plain",
+        encoding: "utf8",
+        content: "ok"
+      });
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+
   it("returns inline artifact content through the read-only-safe tool", async () => {
     const getJobArtifactFile = vi.fn().mockResolvedValue({
       fileName: "summary.txt",
