@@ -3,8 +3,6 @@ interface RegexLogger {
 }
 
 const MAX_DENIED_TOOLS_REGEX_LENGTH = 200;
-const NESTED_QUANTIFIER_PATTERN =
-  /\((?:[^()\\]|\\.)*(?:[+*?]|\{\d+(?:,\d*)?\})(?:[^()\\]|\\.)*\)(?:[+*?]|\{\d+(?:,\d*)?\})/;
 
 export function compileDeniedToolsRegex(
   pattern: string | undefined,
@@ -23,7 +21,7 @@ export function compileDeniedToolsRegex(
     );
   }
 
-  if (NESTED_QUANTIFIER_PATTERN.test(normalizedPattern)) {
+  if (hasNestedQuantifiers(normalizedPattern)) {
     throwLoggedRegexError(
       logger,
       { pattern: normalizedPattern },
@@ -54,4 +52,108 @@ function throwLoggedRegexError(
 ): never {
   logger.warn(context, message);
   throw new Error(message);
+}
+
+interface GroupState {
+  containsQuantifiedToken: boolean;
+}
+
+function hasNestedQuantifiers(pattern: string): boolean {
+  const stack: GroupState[] = [];
+  let escaped = false;
+  let inCharacterClass = false;
+
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (inCharacterClass) {
+      if (char === "\\") {
+        escaped = true;
+      } else if (char === "]") {
+        inCharacterClass = false;
+      }
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (char === "[") {
+      inCharacterClass = true;
+      continue;
+    }
+
+    if (char === "(") {
+      stack.push({ containsQuantifiedToken: false });
+      if (pattern[index + 1] === "?") {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === ")") {
+      const group = stack.pop();
+      if (!group) {
+        continue;
+      }
+
+      const quantifierLength = readQuantifier(pattern, index + 1);
+      if (quantifierLength === 0) {
+        continue;
+      }
+
+      if (group.containsQuantifiedToken) {
+        return true;
+      }
+
+      const parent = stack.at(-1);
+      if (parent) {
+        parent.containsQuantifiedToken = true;
+      }
+      index += quantifierLength;
+      continue;
+    }
+
+    if (stack.length === 0) {
+      continue;
+    }
+
+    const quantifierLength = readQuantifier(pattern, index);
+    if (quantifierLength === 0) {
+      continue;
+    }
+
+    const currentGroup = stack.at(-1);
+    if (currentGroup) {
+      currentGroup.containsQuantifiedToken = true;
+    }
+    index += quantifierLength - 1;
+  }
+
+  return false;
+}
+
+function readQuantifier(pattern: string, start: number): number {
+  if (start >= pattern.length) {
+    return 0;
+  }
+
+  const char = pattern[start];
+  if (char === "*" || char === "+" || char === "?") {
+    return pattern[start + 1] === "?" ? 2 : 1;
+  }
+
+  if (char !== "{") {
+    return 0;
+  }
+
+  const match = /^\{\d+(,\d*)?\}\??/.exec(pattern.slice(start));
+  return match?.[0].length ?? 0;
 }

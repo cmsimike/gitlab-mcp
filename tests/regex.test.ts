@@ -31,11 +31,14 @@ describe("compileDeniedToolsRegex", () => {
 
     const alphaRegex = compileDeniedToolsRegex("^gitlab_[a-z]+$", logger);
     const mixedRegex = compileDeniedToolsRegex("^gitlab_(foo|bar)[0-9]+$", logger);
+    const groupedRegex = compileDeniedToolsRegex("^(?:gitlab_(foo|bar))+$", logger);
 
     expect(alphaRegex).toBeInstanceOf(RegExp);
     expect(alphaRegex?.test("gitlab_delete")).toBe(true);
     expect(mixedRegex).toBeInstanceOf(RegExp);
     expect(mixedRegex?.test("gitlab_foo123")).toBe(true);
+    expect(groupedRegex).toBeInstanceOf(RegExp);
+    expect(groupedRegex?.test("gitlab_foogitlab_bar")).toBe(true);
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
@@ -58,7 +61,13 @@ describe("compileDeniedToolsRegex", () => {
     expect(() => compileDeniedToolsRegex("([a-z]{1,10})+$", logger)).toThrow(
       "Invalid GITLAB_DENIED_TOOLS_REGEX: nested quantifiers are not allowed"
     );
-    expect(logger.warn).toHaveBeenCalledTimes(2);
+    expect(() => compileDeniedToolsRegex("((ab)*)+$", logger)).toThrow(
+      "Invalid GITLAB_DENIED_TOOLS_REGEX: nested quantifiers are not allowed"
+    );
+    expect(() => compileDeniedToolsRegex("((ab)+)+$", logger)).toThrow(
+      "Invalid GITLAB_DENIED_TOOLS_REGEX: nested quantifiers are not allowed"
+    );
+    expect(logger.warn).toHaveBeenCalledTimes(4);
   });
 
   it("rejects invalid regex syntax", () => {
