@@ -705,7 +705,8 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
 
       expect(names).toContain("gitlab_download_job_artifacts");
       expect(names).not.toContain("gitlab_download_job_artifacts_local");
-      expect(names).not.toContain("gitlab_get_job_artifact_file");
+      expect(names).toContain("gitlab_get_job_artifact_file");
+      expect(names).not.toContain("gitlab_get_job_artifact_file_local");
       expect(names).toContain("gitlab_get_job_artifact_file_inline");
       expect(names).toContain("gitlab_list_job_artifacts");
     } finally {
@@ -818,7 +819,46 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
     }
   });
 
-  it("saves artifact files locally by default", async () => {
+  it("returns inline artifact content from gitlab_get_job_artifact_file", async () => {
+    const getJobArtifactFile = vi.fn().mockResolvedValue({
+      fileName: "summary.txt",
+      contentType: "text/plain",
+      encoding: "utf8",
+      content: "ok"
+    });
+
+    const { client, clientTransport, serverTransport } = await createLinkedPair(
+      buildContext({ gitlabStub: { getJobArtifactFile } })
+    );
+
+    try {
+      const result = await client.callTool({
+        name: "gitlab_get_job_artifact_file",
+        arguments: {
+          project_id: "group/project",
+          job_id: "99",
+          artifact_path: "reports/summary.txt",
+          inline: true
+        }
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(getJobArtifactFile).toHaveBeenCalledWith("group/project", "99", "reports/summary.txt");
+
+      const structured = (result as { structuredContent?: { result?: unknown } }).structuredContent;
+      expect(structured?.result).toEqual({
+        fileName: "summary.txt",
+        contentType: "text/plain",
+        encoding: "utf8",
+        content: "ok"
+      });
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+
+  it("saves artifact files locally with gitlab_get_job_artifact_file_local", async () => {
     const saveJobArtifactFile = vi.fn().mockResolvedValue({
       filePath: "/tmp/summary.txt",
       fileName: "summary.txt",
@@ -832,7 +872,7 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
 
     try {
       const result = await client.callTool({
-        name: "gitlab_get_job_artifact_file",
+        name: "gitlab_get_job_artifact_file_local",
         arguments: {
           project_id: "group/project",
           job_id: "99",
@@ -854,47 +894,6 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
         fileName: "summary.txt",
         contentType: "text/plain",
         size: 2
-      });
-    } finally {
-      await clientTransport.close();
-      await serverTransport.close();
-    }
-  });
-
-  it("preserves inline=true compatibility on gitlab_get_job_artifact_file", async () => {
-    const getJobArtifactFile = vi.fn().mockResolvedValue({
-      fileName: "summary.txt",
-      contentType: "text/plain",
-      encoding: "utf8",
-      content: "ok"
-    });
-    const saveJobArtifactFile = vi.fn();
-
-    const { client, clientTransport, serverTransport } = await createLinkedPair(
-      buildContext({ gitlabStub: { getJobArtifactFile, saveJobArtifactFile } })
-    );
-
-    try {
-      const result = await client.callTool({
-        name: "gitlab_get_job_artifact_file",
-        arguments: {
-          project_id: "group/project",
-          job_id: "99",
-          artifact_path: "reports/summary.txt",
-          inline: true
-        }
-      });
-
-      expect(result.isError).toBeFalsy();
-      expect(getJobArtifactFile).toHaveBeenCalledWith("group/project", "99", "reports/summary.txt");
-      expect(saveJobArtifactFile).not.toHaveBeenCalled();
-
-      const structured = (result as { structuredContent?: { result?: unknown } }).structuredContent;
-      expect(structured?.result).toEqual({
-        fileName: "summary.txt",
-        contentType: "text/plain",
-        encoding: "utf8",
-        content: "ok"
       });
     } finally {
       await clientTransport.close();
