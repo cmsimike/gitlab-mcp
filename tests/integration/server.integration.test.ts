@@ -225,8 +225,8 @@ describe("MCP Server Integration - Feature flag filtering", () => {
     }
   });
 
-  it("excludes local artifact write tools when remote authorization is enabled", async () => {
-    const context = buildContext({ remoteAuthorization: true });
+  it("excludes local artifact write tools when local file tools are disabled", async () => {
+    const context = buildContext({ allowLocalFileTools: false });
     const { client, clientTransport, serverTransport } = await createLinkedPair(context);
 
     try {

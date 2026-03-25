@@ -18,6 +18,7 @@ import type { AppContext } from "../../src/types/context.js";
 function buildSseContext(overrides?: Parameters<typeof buildContext>[0]): AppContext {
   const ctx = buildContext(overrides);
   (ctx.env as { SSE: boolean }).SSE = true;
+  ctx.allowLocalFileTools = false;
   return ctx;
 }
 

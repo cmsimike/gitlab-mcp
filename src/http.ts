@@ -43,7 +43,8 @@ const context: AppContext = {
   formatter: new OutputFormatter({
     responseMode: env.GITLAB_RESPONSE_MODE,
     maxBytes: env.GITLAB_MAX_RESPONSE_BYTES
-  })
+  }),
+  allowLocalFileTools: false
 };
 
 const { app, shutdown, garbageCollectSessions } = setupMcpHttpApp({ context, env, logger });

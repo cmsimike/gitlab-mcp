@@ -24,7 +24,7 @@ interface GitLabToolDefinition {
   mutating: boolean;
   requiresAuth?: boolean;
   requiresFeature?: "wiki" | "milestone" | "pipeline" | "release";
-  allowRemoteAuthorization?: boolean;
+  requiresLocalFileTools?: boolean;
   inputSchema?: ToolSchemaShape;
   handler: (args: ToolArgs, context: AppContext) => Promise<unknown>;
 }
@@ -97,7 +97,7 @@ export function registerGitLabTools(server: McpServer, context: AppContext): voi
       continue;
     }
 
-    if (context.env.REMOTE_AUTHORIZATION && definition.allowRemoteAuthorization === false) {
+    if (definition.requiresLocalFileTools && !context.allowLocalFileTools) {
       continue;
     }
 
@@ -2092,7 +2092,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Download the full job artifacts archive to a local directory.",
       mutating: true,
       requiresFeature: "pipeline",
-      allowRemoteAuthorization: false,
+      requiresLocalFileTools: true,
       inputSchema: {
         project_id: z.string().optional(),
         job_id: z.string().min(1),
@@ -2130,7 +2130,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Save one file from a job artifacts archive to a local directory.",
       mutating: true,
       requiresFeature: "pipeline",
-      allowRemoteAuthorization: false,
+      requiresLocalFileTools: true,
       inputSchema: {
         project_id: z.string().optional(),
         job_id: z.string().min(1),

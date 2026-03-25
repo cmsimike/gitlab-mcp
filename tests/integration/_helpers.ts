@@ -89,6 +89,7 @@ const defaultEnv: AppContext["env"] = {
 export interface BuildContextOptions {
   readOnlyMode?: boolean;
   remoteAuthorization?: boolean;
+  allowLocalFileTools?: boolean;
   allowedTools?: string[];
   deniedToolsRegex?: RegExp;
   enabledFeatures?: typeof defaultFeatures;
@@ -142,7 +143,8 @@ export function buildContext(overrides?: BuildContextOptions): AppContext {
     formatter: new OutputFormatter({
       responseMode: "json",
       maxBytes: overrides?.maxBytes ?? 200_000
-    })
+    }),
+    allowLocalFileTools: overrides?.allowLocalFileTools ?? true
   };
 }
 

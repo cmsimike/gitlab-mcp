@@ -26,6 +26,7 @@ function buildHttpContext(overrides?: Parameters<typeof buildContext>[0]): AppCo
   const ctx = buildContext(overrides);
   // Enable JSON-only mode so we get JSON responses (not SSE)
   (ctx.env as { HTTP_JSON_ONLY: boolean }).HTTP_JSON_ONLY = true;
+  ctx.allowLocalFileTools = false;
   return ctx;
 }
 
@@ -163,6 +164,10 @@ describe("HTTP Transport Integration", () => {
       const body = res.body as { result?: { tools?: unknown[] } };
       expect(body.result).toBeDefined();
       expect(body.result!.tools).toBeDefined();
+      const names = (body.result!.tools as Array<{ name: string }>).map((tool) => tool.name);
+      expect(names).not.toContain("gitlab_download_job_artifacts");
+      expect(names).not.toContain("gitlab_get_job_artifact_file");
+      expect(names).toContain("gitlab_get_job_artifact_file_inline");
     });
   });
 

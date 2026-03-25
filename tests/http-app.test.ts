@@ -90,7 +90,8 @@ function buildContext(overrides?: { maxSessions?: number }): AppContext {
     formatter: new OutputFormatter({
       responseMode: "json",
       maxBytes: 200_000
-    })
+    }),
+    allowLocalFileTools: false
   };
 }
 

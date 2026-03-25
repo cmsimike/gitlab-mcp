@@ -23,6 +23,7 @@ const MCP_HEADERS = {
 function buildHttpContext(overrides?: Parameters<typeof buildContext>[0]): AppContext {
   const ctx = buildContext(overrides);
   (ctx.env as { HTTP_JSON_ONLY: boolean }).HTTP_JSON_ONLY = true;
+  ctx.allowLocalFileTools = false;
   return ctx;
 }
 

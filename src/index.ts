@@ -41,7 +41,8 @@ async function main(): Promise<void> {
     formatter: new OutputFormatter({
       responseMode: env.GITLAB_RESPONSE_MODE,
       maxBytes: env.GITLAB_MAX_RESPONSE_BYTES
-    })
+    }),
+    allowLocalFileTools: true
   };
 
   const server = createMcpServer(context);

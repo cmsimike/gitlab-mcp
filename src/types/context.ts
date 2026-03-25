@@ -10,4 +10,5 @@ export interface AppContext {
   gitlab: GitLabClient;
   policy: ToolPolicyEngine;
   formatter: OutputFormatter;
+  allowLocalFileTools: boolean;
 }

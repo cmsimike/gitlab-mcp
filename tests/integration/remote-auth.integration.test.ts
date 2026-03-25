@@ -29,6 +29,7 @@ function buildRemoteAuthContext(
   const ctx = buildContext({ ...overrides, token: null });
   (ctx.env as { REMOTE_AUTHORIZATION: boolean }).REMOTE_AUTHORIZATION = true;
   (ctx.env as { HTTP_JSON_ONLY: boolean }).HTTP_JSON_ONLY = true;
+  ctx.allowLocalFileTools = false;
   if (overrides?.enableDynamicApiUrl) {
     (ctx.env as { ENABLE_DYNAMIC_API_URL: boolean }).ENABLE_DYNAMIC_API_URL = true;
   }
