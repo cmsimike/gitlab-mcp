@@ -2122,25 +2122,6 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
         )
     },
     {
-      name: "gitlab_get_job_artifact_file_inline",
-      title: "Get Job Artifact File Inline",
-      description:
-        "Return one file from a job artifacts archive as inline UTF-8 or base64 content.",
-      mutating: false,
-      requiresFeature: "pipeline",
-      inputSchema: {
-        project_id: z.string().optional(),
-        job_id: z.string().min(1),
-        artifact_path: z.string().min(1)
-      },
-      handler: async (args, context) =>
-        context.gitlab.getJobArtifactFile(
-          resolveProjectId(args, context, true),
-          getString(args, "job_id"),
-          getString(args, "artifact_path")
-        )
-    },
-    {
       name: "gitlab_get_job_artifact_file",
       title: "Get Job Artifact File",
       description:

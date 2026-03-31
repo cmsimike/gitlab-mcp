@@ -169,7 +169,7 @@ describe("HTTP Transport Integration", () => {
       expect(names).not.toContain("gitlab_download_job_artifacts_local");
       expect(names).toContain("gitlab_get_job_artifact_file");
       expect(names).not.toContain("gitlab_get_job_artifact_file_local");
-      expect(names).toContain("gitlab_get_job_artifact_file_inline");
+      expect(names).not.toContain("gitlab_get_job_artifact_file_inline");
     });
   });
 

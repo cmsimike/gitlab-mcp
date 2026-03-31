@@ -707,7 +707,7 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
       expect(names).not.toContain("gitlab_download_job_artifacts_local");
       expect(names).toContain("gitlab_get_job_artifact_file");
       expect(names).not.toContain("gitlab_get_job_artifact_file_local");
-      expect(names).toContain("gitlab_get_job_artifact_file_inline");
+      expect(names).toContain("gitlab_get_job_artifact_file");
       expect(names).toContain("gitlab_list_job_artifacts");
     } finally {
       await clientTransport.close();
@@ -915,7 +915,7 @@ describe("Tool handler: pipeline deployment and artifact tools", () => {
 
     try {
       const result = await client.callTool({
-        name: "gitlab_get_job_artifact_file_inline",
+        name: "gitlab_get_job_artifact_file",
         arguments: {
           project_id: "group/project",
           job_id: "99",

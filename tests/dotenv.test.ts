@@ -41,6 +41,12 @@ describe("resolveEnvFilePathFromArgv", () => {
     );
   });
 
+  it("throws when --env-file has a whitespace-only value", () => {
+    expect(() =>
+      resolveEnvFilePathFromArgv(["node", "dist/index.js", "--env-file", "   "])
+    ).toThrow("--env-file requires a file path");
+  });
+
   it("throws when --env-file= has an empty value", () => {
     expect(() => resolveEnvFilePathFromArgv(["node", "dist/index.js", "--env-file="])).toThrow(
       "--env-file requires a file path"
@@ -73,5 +79,13 @@ describe("loadDotenvFromArgv", () => {
     expect(() =>
       loadDotenvFromArgv(["node", "dist/index.js", `--env-file=${missingPath}`], targetEnv)
     ).toThrow(`Failed to load --env-file '${missingPath}'`);
+  });
+
+  it("throws when the provided env file path is whitespace-only", () => {
+    const targetEnv: NodeJS.ProcessEnv = {};
+
+    expect(() =>
+      loadDotenvFromArgv(["node", "dist/index.js", "--env-file", "   "], targetEnv)
+    ).toThrow("--env-file requires a file path");
   });
 });

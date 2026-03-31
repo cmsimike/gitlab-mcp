@@ -17,7 +17,11 @@ export function resolveEnvFilePathFromArgv(argv: readonly string[]): string | un
       if (!next) {
         throw new Error(`${ENV_FILE_FLAG} requires a file path`);
       }
-      envFilePath = next;
+      const value = next.trim();
+      if (!value) {
+        throw new Error(`${ENV_FILE_FLAG} requires a file path`);
+      }
+      envFilePath = value;
       index += 1;
       continue;
     }
@@ -40,7 +44,7 @@ export function loadDotenvFromArgv(
 ): void {
   const envFilePath = resolveEnvFilePathFromArgv(argv);
 
-  if (!envFilePath) {
+  if (envFilePath === undefined) {
     config({ processEnv, quiet: true });
     return;
   }
