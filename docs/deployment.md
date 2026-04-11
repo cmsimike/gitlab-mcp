@@ -233,7 +233,13 @@ For safety in production environments:
 GITLAB_READ_ONLY_MODE=true
 ```
 
-This disables all mutating tools (create, update, delete, merge, etc.) at registration time.
+This disables tools that require `write`, `delete`, or `admin` capabilities at registration time.
+
+To disable only specific capability classes instead of going fully read-only:
+
+```bash
+GITLAB_DISABLED_CAPABILITIES=delete,graphql
+```
 
 ### Tool Restrictions
 

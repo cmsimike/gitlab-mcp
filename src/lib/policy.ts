@@ -1,11 +1,14 @@
+import { READ_ONLY_BLOCKED_CAPABILITIES, type ToolCapability } from "./tool-capabilities.js";
+
 export interface ToolPolicyMeta {
   name: string;
-  mutating: boolean;
+  capabilities: ToolCapability[];
   requiresFeature?: "wiki" | "milestone" | "pipeline" | "release";
 }
 
 export interface ToolPolicyConfig {
   readOnlyMode: boolean;
+  disabledCapabilities: ToolCapability[];
   allowedTools: string[];
   deniedToolsRegex?: RegExp;
   enabledFeatures: {
@@ -18,11 +21,13 @@ export interface ToolPolicyConfig {
 
 export class ToolPolicyEngine {
   private readonly normalizedAllowedTools: Set<string>;
+  private readonly disabledCapabilities: Set<ToolCapability>;
 
   constructor(private readonly config: ToolPolicyConfig) {
     this.normalizedAllowedTools = new Set(
       config.allowedTools.flatMap((name) => normalizeAllowedToolName(name))
     );
+    this.disabledCapabilities = new Set(config.disabledCapabilities);
   }
 
   filterTools(tools: ToolPolicyMeta[]): ToolPolicyMeta[] {
@@ -36,7 +41,7 @@ export class ToolPolicyEngine {
   }
 
   isToolEnabled(tool: ToolPolicyMeta): boolean {
-    if (this.config.readOnlyMode && tool.mutating) {
+    if (this.hasBlockedCapabilities(tool)) {
       return false;
     }
 
@@ -61,6 +66,17 @@ export class ToolPolicyEngine {
     }
 
     return this.config.enabledFeatures[tool.requiresFeature];
+  }
+
+  private hasBlockedCapabilities(tool: ToolPolicyMeta): boolean {
+    if (
+      this.config.readOnlyMode &&
+      tool.capabilities.some((capability) => READ_ONLY_BLOCKED_CAPABILITIES.has(capability))
+    ) {
+      return true;
+    }
+
+    return tool.capabilities.some((capability) => this.disabledCapabilities.has(capability));
   }
 }
 

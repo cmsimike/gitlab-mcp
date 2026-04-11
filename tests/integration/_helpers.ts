@@ -11,6 +11,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { createMcpServer } from "../../src/server/build-server.js";
 import { OutputFormatter } from "../../src/lib/output.js";
+import type { ToolCapability } from "../../src/lib/tool-capabilities.js";
 import { ToolPolicyEngine } from "../../src/lib/policy.js";
 import type { AppContext } from "../../src/types/context.js";
 
@@ -39,6 +40,7 @@ const defaultEnv: AppContext["env"] = {
   GITLAB_READ_ONLY_MODE: false,
   GITLAB_ALLOWED_PROJECT_IDS: [],
   GITLAB_ALLOWED_TOOLS: [],
+  GITLAB_DISABLED_CAPABILITIES: [],
   GITLAB_ALLOW_GRAPHQL_WITH_PROJECT_SCOPE: false,
   GITLAB_RESPONSE_MODE: "json",
   GITLAB_MAX_RESPONSE_BYTES: 200_000,
@@ -92,6 +94,7 @@ export interface BuildContextOptions {
   allowLocalFileTools?: boolean;
   allowedTools?: string[];
   deniedToolsRegex?: RegExp;
+  disabledCapabilities?: ToolCapability[];
   enabledFeatures?: typeof defaultFeatures;
   token?: string | null; // null = no token; undefined = use default
   allowedProjectIds?: string[];
@@ -115,6 +118,7 @@ export function buildContext(overrides?: BuildContextOptions): AppContext {
       REMOTE_AUTHORIZATION: overrides?.remoteAuthorization ?? defaultEnv.REMOTE_AUTHORIZATION,
       GITLAB_ALLOWED_PROJECT_IDS: overrides?.allowedProjectIds ?? [],
       GITLAB_ALLOWED_TOOLS: overrides?.allowedTools ?? [],
+      GITLAB_DISABLED_CAPABILITIES: overrides?.disabledCapabilities ?? [],
       GITLAB_ALLOW_GRAPHQL_WITH_PROJECT_SCOPE: overrides?.allowGraphqlWithProjectScope ?? false,
       GITLAB_MAX_RESPONSE_BYTES: overrides?.maxBytes ?? 200_000,
       USE_GITLAB_WIKI: features.wiki,
@@ -136,6 +140,7 @@ export function buildContext(overrides?: BuildContextOptions): AppContext {
     } as AppContext["gitlab"],
     policy: new ToolPolicyEngine({
       readOnlyMode,
+      disabledCapabilities: overrides?.disabledCapabilities ?? [],
       allowedTools: overrides?.allowedTools ?? [],
       deniedToolsRegex: overrides?.deniedToolsRegex,
       enabledFeatures: features

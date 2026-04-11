@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { z } from "zod";
 
+import { TOOL_CAPABILITIES, type ToolCapability } from "../lib/tool-capabilities.js";
 import { loadDotenvFromArgv } from "./dotenv.js";
 
 loadDotenvFromArgv();
@@ -60,6 +61,7 @@ const envSchema = z.object({
     .transform((value) => value === "true"),
   GITLAB_ALLOWED_PROJECT_IDS: z.string().optional(),
   GITLAB_ALLOWED_TOOLS: z.string().optional(),
+  GITLAB_DISABLED_CAPABILITIES: z.string().optional(),
   GITLAB_DENIED_TOOLS_REGEX: z.string().optional(),
   GITLAB_ALLOW_GRAPHQL_WITH_PROJECT_SCOPE: z.enum(["true", "false"]).default("false"),
   GITLAB_RESPONSE_MODE: responseModeSchema.default("json"),
@@ -166,6 +168,7 @@ export const env = {
   SSE: parseBoolean(data.SSE, false),
   GITLAB_ALLOWED_PROJECT_IDS: parseCsv(data.GITLAB_ALLOWED_PROJECT_IDS),
   GITLAB_ALLOWED_TOOLS: parseCsv(data.GITLAB_ALLOWED_TOOLS),
+  GITLAB_DISABLED_CAPABILITIES: parseCapabilities(data.GITLAB_DISABLED_CAPABILITIES),
   GITLAB_ALLOW_GRAPHQL_WITH_PROJECT_SCOPE: parseBoolean(
     data.GITLAB_ALLOW_GRAPHQL_WITH_PROJECT_SCOPE,
     false
@@ -195,6 +198,20 @@ function normalizeApiUrl(rawUrl: string): string {
 
 function isHttpUrl(url: URL): boolean {
   return url.protocol === "http:" || url.protocol === "https:";
+}
+
+function parseCapabilities(value: string | undefined): ToolCapability[] {
+  const entries = parseCsv(value).map((entry) => entry.toLowerCase());
+  const valid = new Set<ToolCapability>(TOOL_CAPABILITIES);
+  const invalid = entries.filter((entry): entry is string => !valid.has(entry as ToolCapability));
+
+  if (invalid.length > 0) {
+    throw new Error(
+      `Invalid GITLAB_DISABLED_CAPABILITIES value(s): ${invalid.join(", ")}. Expected any of: ${TOOL_CAPABILITIES.join(", ")}`
+    );
+  }
+
+  return entries as ToolCapability[];
 }
 
 function resolveDefaultServerVersion(): string {

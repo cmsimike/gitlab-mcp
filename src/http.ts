@@ -31,6 +31,7 @@ const context: AppContext = {
   }),
   policy: new ToolPolicyEngine({
     readOnlyMode: env.GITLAB_READ_ONLY_MODE,
+    disabledCapabilities: env.GITLAB_DISABLED_CAPABILITIES,
     allowedTools: env.GITLAB_ALLOWED_TOOLS,
     deniedToolsRegex: compileDeniedToolsRegex(env.GITLAB_DENIED_TOOLS_REGEX, logger),
     enabledFeatures: {

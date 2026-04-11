@@ -85,7 +85,7 @@ config/env.ts
 ### `tools/gitlab.ts` — Tool Definitions
 
 - Defines 80+ tools as a `GitLabToolDefinition[]` array
-- Each definition specifies: `name`, `title`, `description`, `mutating`, optional `requiresFeature`, `inputSchema` (Zod), and `handler`
+- Each definition specifies: `name`, `title`, `description`, `capabilities`, optional `requiresFeature`, `inputSchema` (Zod), and `handler`
 - Tools are filtered by the policy engine at registration time
 - Tool execution wraps results through the output formatter
 - Error handling converts `GitLabApiError` to structured MCP error responses
@@ -143,10 +143,11 @@ Method call ──▶ Build URL ──▶ Set headers ──▶ beforeRequest ho
 
 Controls which tools are available:
 
-1. **Read-only mode** — Blocks all tools marked `mutating: true`
-2. **Feature toggles** — Blocks tools requiring disabled features (wiki, milestone, pipeline, release)
-3. **Allowlist** — If set, only listed tools are available. Tool names are normalized (accepts `get_project` or `gitlab_get_project`)
-4. **Deny regex** — Blocks tools matching a regex pattern
+1. **Read-only mode** — Blocks tools that require `write`, `delete`, or `admin` capabilities
+2. **Capability denylist** — Blocks tools tagged with disabled capabilities such as `delete` or `graphql`
+3. **Feature toggles** — Blocks tools requiring disabled features (wiki, milestone, pipeline, release)
+4. **Allowlist** — If set, only listed tools are available. Tool names are normalized (accepts `get_project` or `gitlab_get_project`)
+5. **Deny regex** — Blocks tools matching a regex pattern
 
 Policy is applied in two places:
 

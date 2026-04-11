@@ -21,6 +21,7 @@ import {
   refLikeSchema,
   slugSchema
 } from "../lib/tool-schema.js";
+import type { ToolCapability } from "../lib/tool-capabilities.js";
 import { getSessionAuth } from "../lib/auth-context.js";
 import { stripNullsDeep } from "../lib/sanitize.js";
 import type { AppContext } from "../types/context.js";
@@ -34,13 +35,20 @@ interface GitLabToolDefinition {
   name: string;
   title: string;
   description: string;
-  mutating: boolean;
+  capabilities: ToolCapability[];
   requiresAuth?: boolean;
   requiresFeature?: "wiki" | "milestone" | "pipeline" | "release";
   requiresLocalFileTools?: boolean;
   inputSchema?: ToolSchemaShape;
   handler: (args: ToolArgs, context: AppContext) => Promise<unknown>;
 }
+
+const readCapabilities: ToolCapability[] = ["read"];
+const writeCapabilities: ToolCapability[] = ["write"];
+const deleteCapabilities: ToolCapability[] = ["delete"];
+const adminCapabilities: ToolCapability[] = ["admin"];
+const readGraphqlCapabilities: ToolCapability[] = ["read", "graphql"];
+const writeGraphqlCapabilities: ToolCapability[] = ["write", "graphql"];
 
 const optionalString = nullableOptional(z.string());
 const optionalNumber = nullableOptional(z.number());
@@ -74,7 +82,7 @@ export function registerGitLabTools(server: McpServer, context: AppContext): voi
   const filtered = context.policy.filterTools(
     definitions.map((item) => ({
       name: item.name,
-      mutating: item.mutating,
+      capabilities: item.capabilities,
       requiresFeature: item.requiresFeature
     }))
   );
@@ -104,7 +112,7 @@ export function registerGitLabTools(server: McpServer, context: AppContext): voi
         try {
           context.policy.assertCanExecute({
             name: definition.name,
-            mutating: definition.mutating,
+            capabilities: definition.capabilities,
             requiresFeature: definition.requiresFeature
           });
 
@@ -148,7 +156,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_project",
       title: "Get Project",
       description: "Get project details by ID or path.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema
       },
@@ -161,7 +169,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_projects",
       title: "List Projects",
       description: "List projects available to the current user.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         search: optionalString,
         search_namespaces: optionalBoolean,
@@ -185,7 +193,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_repository",
       title: "Create Repository",
       description: "Create a new GitLab project/repository.",
-      mutating: true,
+      capabilities: adminCapabilities,
       inputSchema: {
         name: displayNameSchema,
         description: optionalString,
@@ -214,7 +222,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_project_members",
       title: "List Project Members",
       description: "List members of a project.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         query: optionalString,
@@ -234,7 +242,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_group_projects",
       title: "List Group Projects",
       description: "List projects under a group.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         group_id: z.string(),
         include_subgroups: optionalBoolean,
@@ -265,7 +273,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_group_iterations",
       title: "List Group Iterations",
       description: "List iterations for a group.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         group_id: z.string().min(1),
         state: optionalString,
@@ -292,7 +300,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_search_repositories",
       title: "Search Repositories",
       description: "Search repositories by keyword.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         search: z.string().min(1),
         ...paginationShape
@@ -306,7 +314,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_search_code_blobs",
       title: "Search Code Blobs",
       description: "Search repository code blobs in a specific project.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         search: z.string().min(1),
@@ -324,7 +332,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_repository_tree",
       title: "Get Repository Tree",
       description: "List files and directories in a repository tree.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         path: optionalString,
@@ -343,7 +351,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_file_contents",
       title: "Get File Contents",
       description: "Get a file in repository by path and ref.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         file_path: z.string().min(1),
@@ -365,7 +373,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_or_update_file",
       title: "Create Or Update File",
       description: "Create or update one file in repository.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         file_path: z.string().min(1),
@@ -401,7 +409,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_push_files",
       title: "Push Files",
       description: "Create a commit with multiple file actions.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         branch: refLikeSchema,
@@ -470,7 +478,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_branch",
       title: "Create Branch",
       description: "Create a new branch from an existing ref.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         branch: refLikeSchema,
@@ -497,7 +505,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_branch_diffs",
       title: "Get Branch Diffs",
       description: "Compare two branches/refs and return diffs.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         from: refLikeSchema,
@@ -525,7 +533,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_commits",
       title: "List Commits",
       description: "List commits in a project.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         ref_name: optionalRefLikeSchema,
@@ -551,7 +559,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_commit",
       title: "Get Commit",
       description: "Get one commit by SHA.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         sha: z.string().min(1),
@@ -568,7 +576,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_commit_diff",
       title: "Get Commit Diff",
       description: "Get diff for one commit.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         sha: z.string().min(1),
@@ -586,7 +594,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_merge_requests",
       title: "List Merge Requests",
       description: "List merge requests for a project.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         assignee_id: optionalStringOrNumber,
@@ -636,7 +644,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_merge_request",
       title: "Get Merge Request",
       description: "Get one merge request.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: optionalString,
@@ -673,7 +681,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_merge_request",
       title: "Create Merge Request",
       description: "Create a merge request.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         source_branch: refLikeSchema,
@@ -711,7 +719,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_fork_repository",
       title: "Fork Repository",
       description: "Fork an existing project to another namespace.",
-      mutating: true,
+      capabilities: adminCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         namespace: optionalString,
@@ -741,7 +749,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_update_merge_request",
       title: "Update Merge Request",
       description: "Update merge request fields.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -787,7 +795,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_merge_merge_request",
       title: "Merge Merge Request",
       description: "Merge an existing merge request.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: optionalString,
@@ -834,7 +842,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_merge_request_diffs",
       title: "Get Merge Request Diffs",
       description: "Get MR diffs with changed files.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -852,7 +860,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_merge_request_diffs",
       title: "List Merge Request Diffs",
       description: "List detailed MR diffs (versions/changes view).",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -872,7 +880,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       title: "Get Merge Request Code Context",
       description:
         "High-signal MR code context with include/exclude filters, sorting, and token-budgeted output.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: mergeRequestCodeContextSchema,
       handler: async (args, context) =>
         getMergeRequestCodeContext(
@@ -907,7 +915,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_merge_request_versions",
       title: "List Merge Request Versions",
       description: "List MR diff versions.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
@@ -922,7 +930,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_merge_request_version",
       title: "Get Merge Request Version",
       description: "Get one MR diff version.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -941,7 +949,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_approve_merge_request",
       title: "Approve Merge Request",
       description: "Approve a merge request.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -959,7 +967,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_unapprove_merge_request",
       title: "Unapprove Merge Request",
       description: "Remove current user approval from MR.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
@@ -974,7 +982,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_merge_request_approval_state",
       title: "Get Merge Request Approval State",
       description: "Get approval state for MR.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
@@ -989,7 +997,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_merge_request_conflicts",
       title: "Get Merge Request Conflicts",
       description: "Get conflict details for MR.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
@@ -1004,7 +1012,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_merge_request_discussions",
       title: "List Merge Request Discussions",
       description: "List MR discussions.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1021,7 +1029,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_merge_request_thread",
       title: "Create Merge Request Thread",
       description: "Create a new MR discussion thread (supports diff positions).",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1044,7 +1052,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_mr_discussions",
       title: "Merge Request Discussions (Alias)",
       description: "Backward-compatible alias of gitlab_list_merge_request_discussions.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1061,7 +1069,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_merge_request_discussion_note",
       title: "Create MR Discussion Note",
       description: "Add note to existing MR discussion thread.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1084,7 +1092,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_update_merge_request_discussion_note",
       title: "Update MR Discussion Note",
       description: "Update note body/resolved state in MR discussion.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1121,7 +1129,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_delete_merge_request_discussion_note",
       title: "Delete MR Discussion Note",
       description: "Delete note from MR discussion thread.",
-      mutating: true,
+      capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1140,7 +1148,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_resolve_merge_request_thread",
       title: "Resolve Merge Request Thread",
       description: "Resolve/unresolve an MR discussion note.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1161,7 +1169,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_merge_request_notes",
       title: "List Merge Request Notes",
       description: "List top-level notes for an MR.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1180,7 +1188,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_merge_request_notes",
       title: "Get Merge Request Notes (Alias)",
       description: "Backward-compatible alias of gitlab_list_merge_request_notes.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1199,7 +1207,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_draft_note",
       title: "Get Draft Note",
       description: "Get a single merge-request draft note.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1216,7 +1224,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_draft_notes",
       title: "List Draft Notes",
       description: "List draft notes on a merge request.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
@@ -1231,7 +1239,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_draft_note",
       title: "Create Draft Note",
       description: "Create a merge-request draft note.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1254,7 +1262,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_update_draft_note",
       title: "Update Draft Note",
       description: "Update a merge-request draft note.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1288,7 +1296,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_delete_draft_note",
       title: "Delete Draft Note",
       description: "Delete a merge-request draft note.",
-      mutating: true,
+      capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1305,7 +1313,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_publish_draft_note",
       title: "Publish Draft Note",
       description: "Publish one merge-request draft note.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1322,7 +1330,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_bulk_publish_draft_notes",
       title: "Bulk Publish Draft Notes",
       description: "Publish all merge-request draft notes.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
@@ -1337,7 +1345,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_merge_request_note",
       title: "Get Merge Request Note",
       description: "Get a single MR note.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1354,7 +1362,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_merge_request_note",
       title: "Create Merge Request Note",
       description: "Create a top-level MR note.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1371,7 +1379,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_note",
       title: "Create Note",
       description: "Create a note on an issue or merge request.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         noteable_type: z.enum(["issue", "merge_request"]),
@@ -1390,7 +1398,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_update_merge_request_note",
       title: "Update Merge Request Note",
       description: "Update MR note body.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1409,7 +1417,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_delete_merge_request_note",
       title: "Delete Merge Request Note",
       description: "Delete an MR note.",
-      mutating: true,
+      capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
@@ -1426,7 +1434,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_issues",
       title: "List Issues",
       description: "List issues in project.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         assignee_id: optionalStringOrNumber,
@@ -1464,7 +1472,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_my_issues",
       title: "My Issues",
       description: "List issues assigned to the current authenticated user.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         state: z.enum(["opened", "closed", "all"]).optional(),
@@ -1489,7 +1497,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_issue",
       title: "Get Issue",
       description: "Get issue by IID.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1)
@@ -1501,7 +1509,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_issue",
       title: "Create Issue",
       description: "Create a new issue.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         title: z.string().min(1),
@@ -1529,7 +1537,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_update_issue",
       title: "Update Issue",
       description: "Update issue fields.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
@@ -1565,7 +1573,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_delete_issue",
       title: "Delete Issue",
       description: "Delete an issue.",
-      mutating: true,
+      capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1)
@@ -1580,7 +1588,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_issue_discussions",
       title: "List Issue Discussions",
       description: "List issue discussions.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
@@ -1597,7 +1605,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_issue_note",
       title: "Create Issue Note",
       description: "Create issue comment (top-level or discussion note).",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
@@ -1620,7 +1628,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_update_issue_note",
       title: "Update Issue Note",
       description: "Update an issue discussion note body or resolved state.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
@@ -1654,7 +1662,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_issue_links",
       title: "List Issue Links",
       description: "List related issue links for an issue.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1)
@@ -1669,7 +1677,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_issue_link",
       title: "Get Issue Link",
       description: "Get a single issue link by ID.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
@@ -1686,7 +1694,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_issue_link",
       title: "Create Issue Link",
       description: "Create a relation between two issues.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
@@ -1713,7 +1721,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_delete_issue_link",
       title: "Delete Issue Link",
       description: "Delete a relation between issues.",
-      mutating: true,
+      capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
@@ -1730,7 +1738,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_wiki_pages",
       title: "List Wiki Pages",
       description: "List wiki pages in a project.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "wiki",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1746,7 +1754,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_wiki_page",
       title: "Get Wiki Page",
       description: "Get wiki page by slug.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "wiki",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1762,7 +1770,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_wiki_page",
       title: "Create Wiki Page",
       description: "Create a wiki page.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "wiki",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1786,7 +1794,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_update_wiki_page",
       title: "Update Wiki Page",
       description: "Update wiki page by slug.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "wiki",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1815,7 +1823,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_delete_wiki_page",
       title: "Delete Wiki Page",
       description: "Delete wiki page by slug.",
-      mutating: true,
+      capabilities: deleteCapabilities,
       requiresFeature: "wiki",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1831,7 +1839,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_pipelines",
       title: "List Pipelines",
       description: "List pipelines for a project.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1871,7 +1879,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_pipeline",
       title: "Get Pipeline",
       description: "Get one pipeline.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1887,7 +1895,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_deployments",
       title: "List Deployments",
       description: "List deployments in a project.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1912,7 +1920,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_deployment",
       title: "Get Deployment",
       description: "Get one deployment by ID.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1928,7 +1936,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_environments",
       title: "List Environments",
       description: "List environments in a project.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1946,7 +1954,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_environment",
       title: "Get Environment",
       description: "Get one environment by ID.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1962,7 +1970,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_pipeline_jobs",
       title: "List Pipeline Jobs",
       description: "List jobs in a pipeline.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1993,7 +2001,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_pipeline_trigger_jobs",
       title: "List Pipeline Trigger Jobs",
       description: "List downstream/bridge trigger jobs in a pipeline.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2027,7 +2035,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_pipeline_job",
       title: "Get Pipeline Job",
       description: "Get one job by job ID.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2043,7 +2051,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_pipeline_job_output",
       title: "Get Pipeline Job Output",
       description: "Get raw job trace output.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2059,7 +2067,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_job_artifacts",
       title: "List Job Artifacts",
       description: "List files and directories inside a job artifacts archive.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2078,7 +2086,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_download_job_artifacts",
       title: "Download Job Artifacts",
       description: "Download the full job artifacts archive as base64 content.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2094,7 +2102,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_download_job_artifacts_local",
       title: "Download Job Artifacts Local",
       description: "Download the full job artifacts archive to a local directory.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "pipeline",
       requiresLocalFileTools: true,
       inputSchema: {
@@ -2114,7 +2122,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       title: "Get Job Artifact File",
       description:
         "Return one file from a job artifacts archive as inline UTF-8 or base64 content.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2132,7 +2140,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_job_artifact_file_local",
       title: "Get Job Artifact File Local",
       description: "Save one file from a job artifacts archive to a local directory.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "pipeline",
       requiresLocalFileTools: true,
       inputSchema: {
@@ -2153,7 +2161,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_pipeline",
       title: "Create Pipeline",
       description: "Trigger a new pipeline.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2186,7 +2194,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_retry_pipeline",
       title: "Retry Pipeline",
       description: "Retry failed jobs in pipeline.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2202,7 +2210,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_cancel_pipeline",
       title: "Cancel Pipeline",
       description: "Cancel a running pipeline.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2218,7 +2226,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_retry_pipeline_job",
       title: "Retry Pipeline Job",
       description: "Retry one failed job.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2234,7 +2242,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_cancel_pipeline_job",
       title: "Cancel Pipeline Job",
       description: "Cancel one running job.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2250,7 +2258,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_play_pipeline_job",
       title: "Play Pipeline Job",
       description: "Play a manual job.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "pipeline",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2266,7 +2274,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_milestones",
       title: "List Milestones",
       description: "List project milestones.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "milestone",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2288,7 +2296,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_milestone",
       title: "Get Milestone",
       description: "Get a milestone by ID.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "milestone",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2304,7 +2312,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_milestone",
       title: "Create Milestone",
       description: "Create a milestone.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "milestone",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2325,7 +2333,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_update_milestone",
       title: "Update Milestone",
       description: "Update milestone fields.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "milestone",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2347,7 +2355,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_edit_milestone",
       title: "Edit Milestone (Alias)",
       description: "Backward-compatible alias of gitlab_update_milestone.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "milestone",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2369,7 +2377,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_delete_milestone",
       title: "Delete Milestone",
       description: "Delete a milestone.",
-      mutating: true,
+      capabilities: deleteCapabilities,
       requiresFeature: "milestone",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2385,7 +2393,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_milestone_issue",
       title: "Get Milestone Issues",
       description: "List issues assigned to a milestone.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "milestone",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2401,7 +2409,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_milestone_merge_requests",
       title: "Get Milestone Merge Requests",
       description: "List merge requests assigned to a milestone.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "milestone",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2419,7 +2427,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_promote_milestone",
       title: "Promote Milestone",
       description: "Promote a project milestone to a group milestone.",
-      mutating: true,
+      capabilities: adminCapabilities,
       requiresFeature: "milestone",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2435,7 +2443,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_milestone_burndown_events",
       title: "Get Milestone Burndown Events",
       description: "List burndown events for a milestone.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "milestone",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2453,7 +2461,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_releases",
       title: "List Releases",
       description: "List project releases.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "release",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2471,7 +2479,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_release",
       title: "Get Release",
       description: "Get one release by tag name.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "release",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2489,7 +2497,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_release",
       title: "Create Release",
       description: "Create a release.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "release",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2512,7 +2520,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_update_release",
       title: "Update Release",
       description: "Update existing release.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "release",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2534,7 +2542,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_delete_release",
       title: "Delete Release",
       description: "Delete a release by tag.",
-      mutating: true,
+      capabilities: deleteCapabilities,
       requiresFeature: "release",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2550,7 +2558,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_release_evidence",
       title: "Create Release Evidence",
       description: "Create evidence for an existing release.",
-      mutating: true,
+      capabilities: writeCapabilities,
       requiresFeature: "release",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2566,7 +2574,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_download_release_asset",
       title: "Download Release Asset",
       description: "Download a release asset using its direct asset path.",
-      mutating: false,
+      capabilities: readCapabilities,
       requiresFeature: "release",
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -2584,7 +2592,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_labels",
       title: "List Labels",
       description: "List project labels.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         with_counts: optionalBoolean,
@@ -2601,7 +2609,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_label",
       title: "Get Label",
       description: "Get one label by ID.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         label_id: displayNameSchema,
@@ -2620,7 +2628,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_create_label",
       title: "Create Label",
       description: "Create a label.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         name: displayNameSchema,
@@ -2638,7 +2646,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_update_label",
       title: "Update Label",
       description: "Update a label.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         name: optionalDisplayNameSchema,
@@ -2664,7 +2672,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_delete_label",
       title: "Delete Label",
       description: "Delete a label by name.",
-      mutating: true,
+      capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         name: optionalDisplayNameSchema,
@@ -2682,7 +2690,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_namespaces",
       title: "List Namespaces",
       description: "List namespaces visible to user.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         search: optionalString,
         owned: optionalBoolean,
@@ -2694,7 +2702,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_namespace",
       title: "Get Namespace",
       description: "Get namespace by ID or path.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         namespace_id_or_path: optionalProjectIdSchema,
         namespace_id: optionalProjectIdSchema
@@ -2714,7 +2722,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_verify_namespace",
       title: "Verify Namespace",
       description: "Verify if namespace path exists.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         path: z.string().min(1)
       },
@@ -2724,7 +2732,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_users",
       title: "Get Users",
       description: "Search users.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         username: optionalString,
         search: optionalString,
@@ -2739,7 +2747,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_list_events",
       title: "List Events",
       description: "List current user events.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         action: optionalString,
         target_type: optionalString,
@@ -2755,7 +2763,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_get_project_events",
       title: "Get Project Events",
       description: "List events for a specific project.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         action: optionalString,
@@ -2774,7 +2782,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_upload_markdown",
       title: "Upload Markdown",
       description: "Upload markdown file/attachment to project.",
-      mutating: true,
+      capabilities: writeCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         content: optionalString,
@@ -2800,7 +2808,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_download_attachment",
       title: "Download Attachment",
       description: "Download attachment by URL/path and return base64.",
-      mutating: false,
+      capabilities: readCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
         url_or_path: optionalUrlOrPathSchema,
@@ -2856,7 +2864,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_execute_graphql_query",
       title: "Execute GraphQL Query",
       description: "Execute read-only GraphQL query.",
-      mutating: false,
+      capabilities: readGraphqlCapabilities,
       inputSchema: {
         query: z.string().min(1),
         variables: optionalRecord
@@ -2877,7 +2885,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       name: "gitlab_execute_graphql_mutation",
       title: "Execute GraphQL Mutation",
       description: "Execute GraphQL mutation (disabled in read-only mode).",
-      mutating: true,
+      capabilities: writeGraphqlCapabilities,
       inputSchema: {
         query: z.string().min(1),
         variables: optionalRecord
@@ -2897,7 +2905,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       title: "Execute GraphQL (Compat)",
       description:
         "Backward-compatible GraphQL executor. Mutation payloads still honor read-only policy.",
-      mutating: false,
+      capabilities: readGraphqlCapabilities,
       inputSchema: {
         query: z.string().min(1),
         variables: optionalRecord
@@ -2907,7 +2915,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
         if (containsGraphqlMutation(query)) {
           context.policy.assertCanExecute({
             name: "gitlab_execute_graphql",
-            mutating: true
+            capabilities: writeGraphqlCapabilities
           });
         }
 

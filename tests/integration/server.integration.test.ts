@@ -159,11 +159,11 @@ describe("MCP Server Integration - Read-only mode", () => {
     await serverTransport.close();
   });
 
-  it("excludes mutating tools from tools/list", async () => {
+  it("excludes write/delete/admin tools from tools/list", async () => {
     const result = await client.listTools();
     const names = result.tools.map((t) => t.name);
 
-    // These are mutating tools that should be excluded in read-only mode
+    // These tools require write/delete/admin capabilities and should be excluded in read-only mode
     expect(names).not.toContain("gitlab_create_merge_request");
     expect(names).not.toContain("gitlab_create_issue");
     expect(names).not.toContain("gitlab_delete_issue");
@@ -179,6 +179,49 @@ describe("MCP Server Integration - Read-only mode", () => {
     expect(names).toContain("gitlab_get_project");
     expect(names).toContain("gitlab_list_projects");
     expect(names).toContain("gitlab_get_file_contents");
+  });
+});
+
+describe("MCP Server Integration - Capability filtering", () => {
+  it("can disable delete tools without removing write tools", async () => {
+    const context = buildContext({
+      disabledCapabilities: ["delete"]
+    });
+    const { client, clientTransport, serverTransport } = await createLinkedPair(context);
+
+    try {
+      const result = await client.listTools();
+      const names = result.tools.map((t) => t.name);
+
+      expect(names).not.toContain("gitlab_delete_issue");
+      expect(names).not.toContain("gitlab_delete_release");
+      expect(names).toContain("gitlab_create_issue");
+      expect(names).toContain("gitlab_update_merge_request");
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
+  });
+
+  it("can disable graphql tools independently of read tools", async () => {
+    const context = buildContext({
+      disabledCapabilities: ["graphql"]
+    });
+    const { client, clientTransport, serverTransport } = await createLinkedPair(context);
+
+    try {
+      const result = await client.listTools();
+      const names = result.tools.map((t) => t.name);
+
+      expect(names).not.toContain("gitlab_execute_graphql_query");
+      expect(names).not.toContain("gitlab_execute_graphql_mutation");
+      expect(names).not.toContain("gitlab_execute_graphql");
+      expect(names).toContain("gitlab_get_project");
+      expect(names).toContain("gitlab_list_projects");
+    } finally {
+      await clientTransport.close();
+      await serverTransport.close();
+    }
   });
 });
 

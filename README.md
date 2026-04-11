@@ -341,8 +341,11 @@ See [docs/tools.md](docs/tools.md) for the complete reference.
 The policy engine controls which tools are available at registration time:
 
 ```bash
-# Read-only mode — disables all mutating tools
+# Read-only mode — disables write/delete/admin capabilities
 GITLAB_READ_ONLY_MODE=true
+
+# Disable specific capability classes without going fully read-only
+GITLAB_DISABLED_CAPABILITIES=delete,graphql
 
 # Only expose specific tools (supports with or without gitlab_ prefix)
 GITLAB_ALLOWED_TOOLS=get_project,list_merge_requests,get_merge_request
@@ -387,9 +390,10 @@ node dist/http.js --env-file=.env.production
 | Sessions        | `SESSION_TIMEOUT_SECONDS`                 | `3600`                      | Idle session timeout in HTTP mode.                                                  |
 | Sessions        | `MAX_SESSIONS`                            | `1000`                      | Maximum concurrent sessions (`503` when reached).                                   |
 | Sessions        | `MAX_REQUESTS_PER_MINUTE`                 | `300`                       | Per-session rate limit (`429` when exceeded).                                       |
-| Policy          | `GITLAB_READ_ONLY_MODE`                   | `false`                     | Disable mutating tools at registration time.                                        |
+| Policy          | `GITLAB_READ_ONLY_MODE`                   | `false`                     | Disable tools that require `write`, `delete`, or `admin` capabilities.              |
 | Policy          | `GITLAB_ALLOWED_PROJECT_IDS`              | —                           | Restrict access to specific GitLab project IDs.                                     |
 | Policy          | `GITLAB_ALLOWED_TOOLS`                    | —                           | Tool allowlist (supports names with or without `gitlab_` prefix).                   |
+| Policy          | `GITLAB_DISABLED_CAPABILITIES`            | —                           | Capability denylist. Valid values: `read`, `write`, `delete`, `admin`, `graphql`.   |
 | Policy          | `GITLAB_DENIED_TOOLS_REGEX`               | —                           | Regex denylist for tool names.                                                      |
 | Policy          | `GITLAB_ALLOW_GRAPHQL_WITH_PROJECT_SCOPE` | `false`                     | Keep GraphQL tools enabled when project scope restriction is active.                |
 | Auth Extensions | `GITLAB_USE_OAUTH`                        | `false`                     | Enable OAuth 2.0 PKCE flow.                                                         |

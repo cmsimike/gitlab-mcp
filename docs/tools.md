@@ -1,6 +1,6 @@
 # Tools Reference
 
-This document lists all MCP tools provided by gitlab-mcp. Each tool is prefixed with `gitlab_` (except `health_check`). Tools marked as **mutating** are disabled when `GITLAB_READ_ONLY_MODE=true`.
+This document lists all MCP tools provided by gitlab-mcp. Each tool is prefixed with `gitlab_` (except `health_check`). The **Mutating** column is a legacy shorthand for read-only mode visibility; runtime policy additionally classifies tools by capability (`read`, `write`, `delete`, `admin`, `graphql`).
 
 All project-scoped tools accept an optional `project_id` parameter. When `GITLAB_ALLOWED_PROJECT_IDS` is configured with a single project, `project_id` is automatically inferred.
 
@@ -299,6 +299,6 @@ Requires `USE_RELEASE=true` (default).
 | `gitlab_execute_graphql_mutation` | **Yes**  | Execute a GraphQL mutation. Disabled in read-only mode.                                      |
 | `gitlab_execute_graphql`          | No\*     | Backward-compatible executor. Automatically detects mutations and enforces read-only policy. |
 
-\* `gitlab_execute_graphql` is registered as non-mutating but dynamically checks mutation content against the policy engine at execution time.
+\* `gitlab_execute_graphql` is registered with read + graphql capability and dynamically requires write + graphql capability when the payload contains a mutation.
 
 When `GITLAB_ALLOWED_PROJECT_IDS` is configured, GraphQL tools are disabled by default. Set `GITLAB_ALLOW_GRAPHQL_WITH_PROJECT_SCOPE=true` to enable them explicitly.

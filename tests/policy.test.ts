@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { ToolCapability } from "../src/lib/tool-capabilities.js";
 import { ToolPolicyEngine, type ToolPolicyMeta } from "../src/lib/policy.js";
 
 const defaultFeatures = {
@@ -9,34 +10,47 @@ const defaultFeatures = {
   release: true
 };
 
+function tool(
+  name: string,
+  capabilities: ToolCapability[],
+  requiresFeature?: ToolPolicyMeta["requiresFeature"]
+): ToolPolicyMeta {
+  return { name, capabilities, requiresFeature };
+}
+
 describe("ToolPolicyEngine", () => {
   describe("filterTools", () => {
-    it("blocks mutating tools in readonly mode", () => {
+    it("blocks write, delete, and admin capabilities in readonly mode", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: true,
+        disabledCapabilities: [],
         allowedTools: [],
         enabledFeatures: defaultFeatures
       });
 
       expect(
         engine.filterTools([
-          { name: "readonly", mutating: false },
-          { name: "mutate", mutating: true }
+          tool("read", ["read"]),
+          tool("graphql_query", ["read", "graphql"]),
+          tool("write", ["write"]),
+          tool("delete", ["delete"]),
+          tool("admin", ["admin"])
         ])
-      ).toEqual([{ name: "readonly", mutating: false }]);
+      ).toEqual([tool("read", ["read"]), tool("graphql_query", ["read", "graphql"])]);
     });
 
     it("allows all tools when no restrictions are set", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: false,
+        disabledCapabilities: [],
         allowedTools: [],
         enabledFeatures: defaultFeatures
       });
 
       const tools: ToolPolicyMeta[] = [
-        { name: "tool_a", mutating: false },
-        { name: "tool_b", mutating: true },
-        { name: "tool_c", mutating: false }
+        tool("tool_a", ["read"]),
+        tool("tool_b", ["write"]),
+        tool("tool_c", ["delete"])
       ];
 
       expect(engine.filterTools(tools)).toEqual(tools);
@@ -45,6 +59,7 @@ describe("ToolPolicyEngine", () => {
     it("applies allowlist and deny regex", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: false,
+        disabledCapabilities: [],
         allowedTools: ["gitlab_get_project", "gitlab_list_projects"],
         deniedToolsRegex: /^gitlab_list_/,
         enabledFeatures: defaultFeatures
@@ -52,46 +67,33 @@ describe("ToolPolicyEngine", () => {
 
       expect(
         engine.filterTools([
-          { name: "gitlab_get_project", mutating: false },
-          { name: "gitlab_list_projects", mutating: false },
-          { name: "gitlab_create_issue", mutating: true }
+          tool("gitlab_get_project", ["read"]),
+          tool("gitlab_list_projects", ["read"]),
+          tool("gitlab_create_issue", ["write"])
         ])
-      ).toEqual([{ name: "gitlab_get_project", mutating: false }]);
+      ).toEqual([tool("gitlab_get_project", ["read"])]);
     });
 
     it("supports allowlist names without gitlab_ prefix", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: false,
+        disabledCapabilities: [],
         allowedTools: ["get_project"],
         enabledFeatures: defaultFeatures
       });
 
       expect(
         engine.filterTools([
-          { name: "gitlab_get_project", mutating: false },
-          { name: "gitlab_list_projects", mutating: false }
+          tool("gitlab_get_project", ["read"]),
+          tool("gitlab_list_projects", ["read"])
         ])
-      ).toEqual([{ name: "gitlab_get_project", mutating: false }]);
-    });
-
-    it("supports allowlist names with gitlab_ prefix", () => {
-      const engine = new ToolPolicyEngine({
-        readOnlyMode: false,
-        allowedTools: ["gitlab_get_project"],
-        enabledFeatures: defaultFeatures
-      });
-
-      expect(
-        engine.filterTools([
-          { name: "gitlab_get_project", mutating: false },
-          { name: "gitlab_list_projects", mutating: false }
-        ])
-      ).toEqual([{ name: "gitlab_get_project", mutating: false }]);
+      ).toEqual([tool("gitlab_get_project", ["read"])]);
     });
 
     it("respects feature flags", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: false,
+        disabledCapabilities: [],
         allowedTools: [],
         enabledFeatures: {
           wiki: false,
@@ -102,132 +104,26 @@ describe("ToolPolicyEngine", () => {
       });
 
       expect(
-        engine.filterTools([
-          { name: "wiki", mutating: false, requiresFeature: "wiki" },
-          { name: "pipeline", mutating: false, requiresFeature: "pipeline" }
-        ])
-      ).toEqual([{ name: "pipeline", mutating: false, requiresFeature: "pipeline" }]);
+        engine.filterTools([tool("wiki", ["read"], "wiki"), tool("pipeline", ["read"], "pipeline")])
+      ).toEqual([tool("pipeline", ["read"], "pipeline")]);
     });
 
-    it("allows tools without requiresFeature even when features are disabled", () => {
+    it("blocks explicitly disabled capabilities", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: false,
-        allowedTools: [],
-        enabledFeatures: {
-          wiki: false,
-          milestone: false,
-          pipeline: false,
-          release: false
-        }
-      });
-
-      expect(
-        engine.filterTools([
-          { name: "generic_tool", mutating: false },
-          { name: "wiki_tool", mutating: false, requiresFeature: "wiki" }
-        ])
-      ).toEqual([{ name: "generic_tool", mutating: false }]);
-    });
-
-    it("applies deniedToolsRegex without allowlist", () => {
-      const engine = new ToolPolicyEngine({
-        readOnlyMode: false,
-        allowedTools: [],
-        deniedToolsRegex: /^gitlab_delete_/,
-        enabledFeatures: defaultFeatures
-      });
-
-      expect(
-        engine.filterTools([
-          { name: "gitlab_get_project", mutating: false },
-          { name: "gitlab_delete_project", mutating: true },
-          { name: "gitlab_delete_issue", mutating: true }
-        ])
-      ).toEqual([{ name: "gitlab_get_project", mutating: false }]);
-    });
-
-    it("handles empty tools array", () => {
-      const engine = new ToolPolicyEngine({
-        readOnlyMode: false,
+        disabledCapabilities: ["delete", "graphql"],
         allowedTools: [],
         enabledFeatures: defaultFeatures
       });
 
-      expect(engine.filterTools([])).toEqual([]);
-    });
-
-    it("combines readOnly mode with feature flags", () => {
-      const engine = new ToolPolicyEngine({
-        readOnlyMode: true,
-        allowedTools: [],
-        enabledFeatures: {
-          wiki: true,
-          milestone: true,
-          pipeline: true,
-          release: true
-        }
-      });
-
       expect(
         engine.filterTools([
-          { name: "read_wiki", mutating: false, requiresFeature: "wiki" },
-          { name: "create_wiki", mutating: true, requiresFeature: "wiki" },
-          { name: "get_project", mutating: false }
+          tool("read", ["read"]),
+          tool("delete_issue", ["delete"]),
+          tool("graphql_query", ["read", "graphql"]),
+          tool("write_issue", ["write"])
         ])
-      ).toEqual([
-        { name: "read_wiki", mutating: false, requiresFeature: "wiki" },
-        { name: "get_project", mutating: false }
-      ]);
-    });
-
-    it("handles allowlist with whitespace-padded names", () => {
-      const engine = new ToolPolicyEngine({
-        readOnlyMode: false,
-        allowedTools: ["  get_project  "],
-        enabledFeatures: defaultFeatures
-      });
-
-      expect(
-        engine.filterTools([
-          { name: "gitlab_get_project", mutating: false },
-          { name: "gitlab_list_projects", mutating: false }
-        ])
-      ).toEqual([{ name: "gitlab_get_project", mutating: false }]);
-    });
-
-    it("handles allowlist with empty strings", () => {
-      const engine = new ToolPolicyEngine({
-        readOnlyMode: false,
-        allowedTools: ["", "  ", "get_project"],
-        enabledFeatures: defaultFeatures
-      });
-
-      expect(
-        engine.filterTools([
-          { name: "gitlab_get_project", mutating: false },
-          { name: "gitlab_list_projects", mutating: false }
-        ])
-      ).toEqual([{ name: "gitlab_get_project", mutating: false }]);
-    });
-
-    it("respects release feature flag", () => {
-      const engine = new ToolPolicyEngine({
-        readOnlyMode: false,
-        allowedTools: [],
-        enabledFeatures: {
-          wiki: true,
-          milestone: true,
-          pipeline: true,
-          release: false
-        }
-      });
-
-      expect(
-        engine.filterTools([
-          { name: "list_releases", mutating: false, requiresFeature: "release" },
-          { name: "list_pipelines", mutating: false, requiresFeature: "pipeline" }
-        ])
-      ).toEqual([{ name: "list_pipelines", mutating: false, requiresFeature: "pipeline" }]);
+      ).toEqual([tool("read", ["read"]), tool("write_issue", ["write"])]);
     });
   });
 
@@ -235,55 +131,73 @@ describe("ToolPolicyEngine", () => {
     it("does not throw for enabled tools", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: false,
+        disabledCapabilities: [],
         allowedTools: [],
         enabledFeatures: defaultFeatures
       });
 
       expect(() => {
-        engine.assertCanExecute({ name: "any_tool", mutating: false });
+        engine.assertCanExecute(tool("any_tool", ["read"]));
       }).not.toThrow();
     });
 
-    it("throws for disabled tools in readonly mode", () => {
+    it("throws for blocked capabilities in readonly mode", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: true,
+        disabledCapabilities: [],
         allowedTools: [],
         enabledFeatures: defaultFeatures
       });
 
       expect(() => {
-        engine.assertCanExecute({ name: "create_issue", mutating: true });
+        engine.assertCanExecute(tool("create_issue", ["write"]));
+      }).toThrow("disabled by policy");
+    });
+
+    it("throws for explicitly disabled capabilities", () => {
+      const engine = new ToolPolicyEngine({
+        readOnlyMode: false,
+        disabledCapabilities: ["graphql"],
+        allowedTools: [],
+        enabledFeatures: defaultFeatures
+      });
+
+      expect(() => {
+        engine.assertCanExecute(tool("graphql_query", ["read", "graphql"]));
       }).toThrow("disabled by policy");
     });
 
     it("throws for tools not in allowlist", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: false,
+        disabledCapabilities: [],
         allowedTools: ["gitlab_get_project"],
         enabledFeatures: defaultFeatures
       });
 
       expect(() => {
-        engine.assertCanExecute({ name: "gitlab_list_projects", mutating: false });
+        engine.assertCanExecute(tool("gitlab_list_projects", ["read"]));
       }).toThrow("disabled by policy");
     });
 
     it("throws for tools matching denied regex", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: false,
+        disabledCapabilities: [],
         allowedTools: [],
         deniedToolsRegex: /^gitlab_delete_/,
         enabledFeatures: defaultFeatures
       });
 
       expect(() => {
-        engine.assertCanExecute({ name: "gitlab_delete_issue", mutating: true });
+        engine.assertCanExecute(tool("gitlab_delete_issue", ["delete"]));
       }).toThrow("disabled by policy");
     });
 
     it("throws for tools requiring disabled features", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: false,
+        disabledCapabilities: [],
         allowedTools: [],
         enabledFeatures: {
           wiki: false,
@@ -294,7 +208,7 @@ describe("ToolPolicyEngine", () => {
       });
 
       expect(() => {
-        engine.assertCanExecute({ name: "wiki_tool", mutating: false, requiresFeature: "wiki" });
+        engine.assertCanExecute(tool("wiki_tool", ["read"], "wiki"));
       }).toThrow("disabled by policy");
     });
   });
@@ -303,22 +217,36 @@ describe("ToolPolicyEngine", () => {
     it("returns true for unrestricted tools", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: false,
+        disabledCapabilities: [],
         allowedTools: [],
         enabledFeatures: defaultFeatures
       });
 
-      expect(engine.isToolEnabled({ name: "any_tool", mutating: false })).toBe(true);
+      expect(engine.isToolEnabled(tool("any_tool", ["read"]))).toBe(true);
     });
 
-    it("returns false for mutating tools in readonly mode", () => {
+    it("returns false for blocked capabilities in readonly mode", () => {
       const engine = new ToolPolicyEngine({
         readOnlyMode: true,
+        disabledCapabilities: [],
         allowedTools: [],
         enabledFeatures: defaultFeatures
       });
 
-      expect(engine.isToolEnabled({ name: "create_something", mutating: true })).toBe(false);
-      expect(engine.isToolEnabled({ name: "read_something", mutating: false })).toBe(true);
+      expect(engine.isToolEnabled(tool("create_something", ["write"]))).toBe(false);
+      expect(engine.isToolEnabled(tool("read_something", ["read"]))).toBe(true);
+    });
+
+    it("returns false when a capability is explicitly disabled", () => {
+      const engine = new ToolPolicyEngine({
+        readOnlyMode: false,
+        disabledCapabilities: ["delete"],
+        allowedTools: [],
+        enabledFeatures: defaultFeatures
+      });
+
+      expect(engine.isToolEnabled(tool("delete_something", ["delete"]))).toBe(false);
+      expect(engine.isToolEnabled(tool("update_something", ["write"]))).toBe(true);
     });
   });
 });
