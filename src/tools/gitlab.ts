@@ -29,48 +29,27 @@ interface GitLabToolDefinition {
   handler: (args: ToolArgs, context: AppContext) => Promise<unknown>;
 }
 
-const optionalString = z.preprocess(
-  (value) => (value === null ? undefined : value),
-  z.string().optional()
-);
-const optionalNumber = z.preprocess(
-  (value) => (value === null ? undefined : value),
-  z.number().optional()
-);
-const optionalBoolean = z.preprocess(
-  (value) => (value === null ? undefined : value),
-  z.boolean().optional()
-);
-const optionalStringArray = z.preprocess(
-  (value) => (value === null ? undefined : value),
-  z.array(z.string()).optional()
-);
-const optionalNumberArray = z.preprocess(
-  (value) => (value === null ? undefined : value),
-  z.array(z.number()).optional()
-);
-const optionalStringOrNumber = z.preprocess(
-  (value) => (value === null ? undefined : value),
-  z.union([z.string(), z.number()]).optional()
-);
-const optionalStringOrStringArray = z.preprocess(
-  (value) => (value === null ? undefined : value),
-  z.union([z.string(), z.array(z.string())]).optional()
-);
-const optionalRecord = z.preprocess(
-  (value) => (value === null ? undefined : value),
-  z.record(z.string(), z.unknown()).optional()
-);
+const optionalString = z.string().nullable().optional();
+const optionalNumber = z.number().nullable().optional();
+const optionalBoolean = z.boolean().nullable().optional();
+const optionalStringArray = z.array(z.string()).nullable().optional();
+const optionalNumberArray = z.array(z.number()).nullable().optional();
+const optionalStringOrNumber = z.union([z.string(), z.number()]).nullable().optional();
+const optionalStringOrStringArray = z
+  .union([z.string(), z.array(z.string())])
+  .nullable()
+  .optional();
+const optionalRecord = z.record(z.string(), z.unknown()).nullable().optional();
 const pipelineInputValueSchema = z.union([
   z.string(),
   z.number(),
   z.boolean(),
   z.array(z.union([z.string(), z.number(), z.boolean()]))
 ]);
-const optionalPipelineInputsRecord = z.preprocess(
-  (value) => (value === null ? undefined : value),
-  z.record(z.string(), pipelineInputValueSchema).optional()
-);
+const optionalPipelineInputsRecord = z
+  .record(z.string(), pipelineInputValueSchema)
+  .nullable()
+  .optional();
 
 const paginationShape = {
   page: optionalNumber,
@@ -199,7 +178,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a new GitLab project/repository.",
       mutating: true,
       inputSchema: {
-        name: optionalString,
+        name: z.string().min(1),
         description: optionalString,
         visibility: z.enum(["private", "internal", "public"]).optional(),
         initialize_with_readme: optionalBoolean,
