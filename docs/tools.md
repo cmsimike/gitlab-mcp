@@ -126,43 +126,43 @@ Most list endpoints support `page` and `per_page`. Notable exceptions are `gitla
 
 ## MR Discussions
 
-| Tool                                          | Mutating | Description                                                                                                       |
-| --------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
-| `gitlab_list_merge_request_discussions`       | No       | List MR discussions.                                                                                              |
-| `gitlab_mr_discussions`                       | No       | Alias of `list_merge_request_discussions`.                                                                        |
-| `gitlab_create_merge_request_thread`          | **Yes**  | Create a new discussion thread. Params: `body` (required). Supports `position` (for diff comments), `created_at`. |
-| `gitlab_create_merge_request_discussion_note` | **Yes**  | Reply to an existing discussion thread. Params: `discussion_id`, `body` (required).                               |
-| `gitlab_update_merge_request_discussion_note` | **Yes**  | Update a discussion note. Provide either `body` or `resolved` (not both).                                         |
-| `gitlab_delete_merge_request_discussion_note` | **Yes**  | Delete a note from a discussion thread.                                                                           |
-| `gitlab_resolve_merge_request_thread`         | **Yes**  | Resolve/unresolve a discussion note. Params: `discussion_id`, `note_id`, `resolved` (default `true`).             |
+| Tool                                          | Mutating | Description                                                                                                                                                        |
+| --------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `gitlab_list_merge_request_discussions`       | No       | List MR discussions.                                                                                                                                               |
+| `gitlab_mr_discussions`                       | No       | Alias of `list_merge_request_discussions`.                                                                                                                         |
+| `gitlab_create_merge_request_thread`          | **Yes**  | Create a new discussion thread. Params: `body` (required). Supports `position` (for diff comments), `created_at`.                                                  |
+| `gitlab_create_merge_request_discussion_note` | **Yes**  | Reply to an existing discussion thread. Params: `discussion_id`, `body` (required).                                                                                |
+| `gitlab_update_merge_request_discussion_note` | **Yes**  | Update a discussion note. Provide either `body` or `resolved` (not both).                                                                                          |
+| `gitlab_delete_merge_request_discussion_note` | **Yes**  | Delete an MR discussion note permanently. Irreversible. Requires `merge_request_iid`, `discussion_id`, `note_id`. Pre-check with `list_merge_request_discussions`. |
+| `gitlab_resolve_merge_request_thread`         | **Yes**  | Resolve/unresolve a discussion note. Params: `discussion_id`, `note_id`, `resolved` (default `true`).                                                              |
 
 ---
 
 ## MR Notes (Comments)
 
-| Tool                               | Mutating | Description                                                                                                            |
-| ---------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `gitlab_list_merge_request_notes`  | No       | List top-level MR notes. Supports `sort`, `order_by`.                                                                  |
-| `gitlab_get_merge_request_notes`   | No       | Alias of `list_merge_request_notes`.                                                                                   |
-| `gitlab_get_merge_request_note`    | No       | Get a single MR note by ID.                                                                                            |
-| `gitlab_create_merge_request_note` | **Yes**  | Create a top-level MR comment. Params: `body` (required).                                                              |
-| `gitlab_update_merge_request_note` | **Yes**  | Update MR note body. Params: `note_id`, `body` (required).                                                             |
-| `gitlab_delete_merge_request_note` | **Yes**  | Delete an MR note.                                                                                                     |
-| `gitlab_create_note`               | **Yes**  | Create a note on an issue or MR. Params: `noteable_type` (`issue`/`merge_request`), `noteable_iid`, `body` (required). |
+| Tool                               | Mutating | Description                                                                                                                                                           |
+| ---------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gitlab_list_merge_request_notes`  | No       | List top-level MR notes. Supports `sort`, `order_by`.                                                                                                                 |
+| `gitlab_get_merge_request_notes`   | No       | Alias of `list_merge_request_notes`.                                                                                                                                  |
+| `gitlab_get_merge_request_note`    | No       | Get a single MR note by ID.                                                                                                                                           |
+| `gitlab_create_merge_request_note` | **Yes**  | Create a top-level MR comment. Params: `body` (required).                                                                                                             |
+| `gitlab_update_merge_request_note` | **Yes**  | Update MR note body. Params: `note_id`, `body` (required).                                                                                                            |
+| `gitlab_delete_merge_request_note` | **Yes**  | Delete a top-level MR note permanently. Irreversible. Requires `merge_request_iid`, `note_id`. Pre-check with `get_merge_request_note` or `list_merge_request_notes`. |
+| `gitlab_create_note`               | **Yes**  | Create a note on an issue or MR. Params: `noteable_type` (`issue`/`merge_request`), `noteable_iid`, `body` (required).                                                |
 
 ---
 
 ## Draft Notes
 
-| Tool                              | Mutating | Description                                                                                |
-| --------------------------------- | -------- | ------------------------------------------------------------------------------------------ |
-| `gitlab_get_draft_note`           | No       | Get a single draft note.                                                                   |
-| `gitlab_list_draft_notes`         | No       | List draft notes on an MR.                                                                 |
-| `gitlab_create_draft_note`        | **Yes**  | Create a draft note. Params: `body` (required). Supports `position`, `resolve_discussion`. |
-| `gitlab_update_draft_note`        | **Yes**  | Update a draft note. At least one of `body`, `position`, or `resolve_discussion` required. |
-| `gitlab_delete_draft_note`        | **Yes**  | Delete a draft note.                                                                       |
-| `gitlab_publish_draft_note`       | **Yes**  | Publish one draft note.                                                                    |
-| `gitlab_bulk_publish_draft_notes` | **Yes**  | Publish all draft notes on an MR.                                                          |
+| Tool                              | Mutating | Description                                                                                                                                          |
+| --------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gitlab_get_draft_note`           | No       | Get a single draft note.                                                                                                                             |
+| `gitlab_list_draft_notes`         | No       | List draft notes on an MR.                                                                                                                           |
+| `gitlab_create_draft_note`        | **Yes**  | Create a draft note. Params: `body` (required). Supports `position`, `resolve_discussion`.                                                           |
+| `gitlab_update_draft_note`        | **Yes**  | Update a draft note. At least one of `body`, `position`, or `resolve_discussion` required.                                                           |
+| `gitlab_delete_draft_note`        | **Yes**  | Delete a draft note permanently. Irreversible. Requires `merge_request_iid`, `draft_note_id`. Pre-check with `get_draft_note` or `list_draft_notes`. |
+| `gitlab_publish_draft_note`       | **Yes**  | Publish one draft note.                                                                                                                              |
+| `gitlab_bulk_publish_draft_notes` | **Yes**  | Publish all draft notes on an MR.                                                                                                                    |
 
 ---
 
@@ -175,7 +175,7 @@ Most list endpoints support `page` and `per_page`. Notable exceptions are `gitla
 | `gitlab_get_issue`              | No       | Get issue by IID.                                                                                                                                                                              |
 | `gitlab_create_issue`           | **Yes**  | Create an issue. Params: `title` (required). Supports `description`, `labels`, `milestone_id`, `due_date`, `confidential`, `issue_type`, `assignee_ids`.                                       |
 | `gitlab_update_issue`           | **Yes**  | Update issue fields. Supports `title`, `description`, `state_event`, `labels`, `assignee_ids`, `weight`, `issue_type`, `discussion_locked`.                                                    |
-| `gitlab_delete_issue`           | **Yes**  | Delete an issue.                                                                                                                                                                               |
+| `gitlab_delete_issue`           | **Yes**  | Delete an issue permanently. Irreversible. Requires `issue_iid`. Pre-check with `get_issue`.                                                                                                   |
 | `gitlab_list_issue_discussions` | No       | List issue discussions.                                                                                                                                                                        |
 | `gitlab_create_issue_note`      | **Yes**  | Create issue comment. Params: `body` (required). Supports `discussion_id` (to reply to thread), `created_at`.                                                                                  |
 | `gitlab_update_issue_note`      | **Yes**  | Update an issue note. Provide either `body` or `resolved` (not both).                                                                                                                          |
@@ -187,7 +187,7 @@ Most list endpoints support `page` and `per_page`. Notable exceptions are `gitla
 | `gitlab_list_issue_links`  | No       | List related issue links.                                                                                                                                         |
 | `gitlab_get_issue_link`    | No       | Get a single issue link by ID.                                                                                                                                    |
 | `gitlab_create_issue_link` | **Yes**  | Create a relation between two issues. Params: `target_project_id`, `target_issue_iid` (required). Supports `link_type` (`relates_to`, `blocks`, `is_blocked_by`). |
-| `gitlab_delete_issue_link` | **Yes**  | Delete a relation between issues.                                                                                                                                 |
+| `gitlab_delete_issue_link` | **Yes**  | Delete an issue link permanently. Irreversible for that relation. Requires `issue_iid`, `issue_link_id`. Pre-check with `get_issue_link` or `list_issue_links`.   |
 
 ---
 
@@ -201,7 +201,7 @@ Requires `USE_GITLAB_WIKI=true` (default).
 | `gitlab_get_wiki_page`    | No       | Get wiki page by slug. Supports `version`.                                                                            |
 | `gitlab_create_wiki_page` | **Yes**  | Create a wiki page. Params: `title`, `content` (required). Supports `format` (`markdown`, `rdoc`, `asciidoc`, `org`). |
 | `gitlab_update_wiki_page` | **Yes**  | Update wiki page by slug. Params: `slug`, `content` (required). Supports `title`, `format`.                           |
-| `gitlab_delete_wiki_page` | **Yes**  | Delete wiki page by slug.                                                                                             |
+| `gitlab_delete_wiki_page` | **Yes**  | Delete a wiki page permanently. Irreversible. Requires `slug`. Pre-check with `get_wiki_page` or `list_wiki_pages`.   |
 
 ---
 
@@ -239,18 +239,18 @@ Requires `USE_PIPELINE=true` (default).
 
 Requires `USE_MILESTONE=true` (default).
 
-| Tool                                   | Mutating | Description                                                                                              |
-| -------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
-| `gitlab_list_milestones`               | No       | List project milestones. Supports `iids`, `state`, `title`, `search`, `include_ancestors`, date filters. |
-| `gitlab_get_milestone`                 | No       | Get a milestone by ID.                                                                                   |
-| `gitlab_create_milestone`              | **Yes**  | Create a milestone. Params: `title` (required). Supports `description`, `due_date`, `start_date`.        |
-| `gitlab_update_milestone`              | **Yes**  | Update milestone fields.                                                                                 |
-| `gitlab_edit_milestone`                | **Yes**  | Alias of `update_milestone`.                                                                             |
-| `gitlab_delete_milestone`              | **Yes**  | Delete a milestone.                                                                                      |
-| `gitlab_get_milestone_issue`           | No       | List issues assigned to a milestone.                                                                     |
-| `gitlab_get_milestone_merge_requests`  | No       | List MRs assigned to a milestone.                                                                        |
-| `gitlab_promote_milestone`             | **Yes**  | Promote a project milestone to a group milestone.                                                        |
-| `gitlab_get_milestone_burndown_events` | No       | List burndown events for a milestone.                                                                    |
+| Tool                                   | Mutating | Description                                                                                                                 |
+| -------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `gitlab_list_milestones`               | No       | List project milestones. Supports `iids`, `state`, `title`, `search`, `include_ancestors`, date filters.                    |
+| `gitlab_get_milestone`                 | No       | Get a milestone by ID.                                                                                                      |
+| `gitlab_create_milestone`              | **Yes**  | Create a milestone. Params: `title` (required). Supports `description`, `due_date`, `start_date`.                           |
+| `gitlab_update_milestone`              | **Yes**  | Update milestone fields.                                                                                                    |
+| `gitlab_edit_milestone`                | **Yes**  | Alias of `update_milestone`.                                                                                                |
+| `gitlab_delete_milestone`              | **Yes**  | Delete a milestone permanently. Irreversible. Requires `milestone_id`. Pre-check with `get_milestone` or `list_milestones`. |
+| `gitlab_get_milestone_issue`           | No       | List issues assigned to a milestone.                                                                                        |
+| `gitlab_get_milestone_merge_requests`  | No       | List MRs assigned to a milestone.                                                                                           |
+| `gitlab_promote_milestone`             | **Yes**  | Promote a project milestone to a group milestone.                                                                           |
+| `gitlab_get_milestone_burndown_events` | No       | List burndown events for a milestone.                                                                                       |
 
 ---
 
@@ -264,7 +264,7 @@ Requires `USE_RELEASE=true` (default).
 | `gitlab_get_release`             | No       | Get one release by tag name.                                                                                                                  |
 | `gitlab_create_release`          | **Yes**  | Create a release. Params: `tag_name` (required). Supports `name`, `tag_message`, `description`, `ref`, `released_at`, `milestones`, `assets`. |
 | `gitlab_update_release`          | **Yes**  | Update existing release.                                                                                                                      |
-| `gitlab_delete_release`          | **Yes**  | Delete a release by tag.                                                                                                                      |
+| `gitlab_delete_release`          | **Yes**  | Delete the release entry for `tag_name` permanently. Irreversible for the release record. Pre-check with `get_release` or `list_releases`.    |
 | `gitlab_create_release_evidence` | **Yes**  | Create evidence for an existing release.                                                                                                      |
 | `gitlab_download_release_asset`  | No       | Download a release asset. Params: `tag_name`, `direct_asset_path` (required).                                                                 |
 
@@ -272,13 +272,13 @@ Requires `USE_RELEASE=true` (default).
 
 ## Labels
 
-| Tool                  | Mutating | Description                                                                                                |
-| --------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
-| `gitlab_list_labels`  | No       | List project labels. Supports `with_counts`, `include_ancestor_groups`, `search`.                          |
-| `gitlab_get_label`    | No       | Get one label by ID. Supports `include_ancestor_groups`.                                                   |
-| `gitlab_create_label` | **Yes**  | Create a label. Params: `name`, `color` (required). Supports `description`, `priority`.                    |
-| `gitlab_update_label` | **Yes**  | Update a label. Identify by `name` or `label_id`. Supports `new_name`, `color`, `description`, `priority`. |
-| `gitlab_delete_label` | **Yes**  | Delete a label. Identify by `name` or `label_id`.                                                          |
+| Tool                  | Mutating | Description                                                                                                              |
+| --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `gitlab_list_labels`  | No       | List project labels. Supports `with_counts`, `include_ancestor_groups`, `search`.                                        |
+| `gitlab_get_label`    | No       | Get one label by ID. Supports `include_ancestor_groups`.                                                                 |
+| `gitlab_create_label` | **Yes**  | Create a label. Params: `name`, `color` (required). Supports `description`, `priority`.                                  |
+| `gitlab_update_label` | **Yes**  | Update a label. Identify by `name` or `label_id`. Supports `new_name`, `color`, `description`, `priority`.               |
+| `gitlab_delete_label` | **Yes**  | Delete a label permanently. Irreversible. Identify by `name` or `label_id`. Pre-check with `get_label` or `list_labels`. |
 
 ---
 

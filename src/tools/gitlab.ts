@@ -1128,7 +1128,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
     {
       name: "gitlab_delete_merge_request_discussion_note",
       title: "Delete MR Discussion Note",
-      description: "Delete note from MR discussion thread.",
+      description:
+        "Delete an MR discussion note permanently. Irreversible. Requires merge_request_iid, discussion_id, and note_id. Recommended pre-check: gitlab_list_merge_request_discussions.",
       capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1295,7 +1296,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
     {
       name: "gitlab_delete_draft_note",
       title: "Delete Draft Note",
-      description: "Delete a merge-request draft note.",
+      description:
+        "Delete a merge-request draft note permanently. Irreversible. Requires merge_request_iid and draft_note_id. Recommended pre-check: gitlab_get_draft_note or gitlab_list_draft_notes.",
       capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1416,7 +1418,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
     {
       name: "gitlab_delete_merge_request_note",
       title: "Delete Merge Request Note",
-      description: "Delete an MR note.",
+      description:
+        "Delete a top-level MR note permanently. Irreversible. Requires merge_request_iid and note_id. Recommended pre-check: gitlab_get_merge_request_note or gitlab_list_merge_request_notes.",
       capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1572,7 +1575,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
     {
       name: "gitlab_delete_issue",
       title: "Delete Issue",
-      description: "Delete an issue.",
+      description:
+        "Delete an issue permanently. Irreversible. Requires issue_iid. Recommended pre-check: gitlab_get_issue.",
       capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1720,7 +1724,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
     {
       name: "gitlab_delete_issue_link",
       title: "Delete Issue Link",
-      description: "Delete a relation between issues.",
+      description:
+        "Delete an issue link permanently. Irreversible for that relation. Requires issue_iid and issue_link_id. Recommended pre-check: gitlab_get_issue_link or gitlab_list_issue_links.",
       capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
@@ -1822,7 +1827,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
     {
       name: "gitlab_delete_wiki_page",
       title: "Delete Wiki Page",
-      description: "Delete wiki page by slug.",
+      description:
+        "Delete a wiki page permanently. Irreversible. Requires slug. Recommended pre-check: gitlab_get_wiki_page or gitlab_list_wiki_pages.",
       capabilities: deleteCapabilities,
       requiresFeature: "wiki",
       inputSchema: {
@@ -2376,7 +2382,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
     {
       name: "gitlab_delete_milestone",
       title: "Delete Milestone",
-      description: "Delete a milestone.",
+      description:
+        "Delete a milestone permanently. Irreversible. Requires milestone_id. Recommended pre-check: gitlab_get_milestone or gitlab_list_milestones.",
       capabilities: deleteCapabilities,
       requiresFeature: "milestone",
       inputSchema: {
@@ -2541,7 +2548,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
     {
       name: "gitlab_delete_release",
       title: "Delete Release",
-      description: "Delete a release by tag.",
+      description:
+        "Delete the release record for tag_name permanently. Irreversible for the release entry. Requires tag_name. Recommended pre-check: gitlab_get_release or gitlab_list_releases.",
       capabilities: deleteCapabilities,
       requiresFeature: "release",
       inputSchema: {
@@ -2671,7 +2679,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
     {
       name: "gitlab_delete_label",
       title: "Delete Label",
-      description: "Delete a label by name.",
+      description:
+        "Delete a label permanently. Irreversible. Requires name or label_id. Recommended pre-check: gitlab_get_label or gitlab_list_labels.",
       capabilities: deleteCapabilities,
       inputSchema: {
         project_id: optionalProjectIdSchema,
