@@ -8,6 +8,19 @@ import {
   type GitLabPipelineInputValue,
   type PushFileAction
 } from "../lib/gitlab-client.js";
+import {
+  bodySchema,
+  displayNameSchema,
+  nullableOptional,
+  optionalBodySchema,
+  optionalDisplayNameSchema,
+  optionalProjectIdSchema,
+  optionalRefLikeSchema,
+  optionalUrlOrPathSchema,
+  projectIdSchema,
+  refLikeSchema,
+  slugSchema
+} from "../lib/tool-schema.js";
 import { getSessionAuth } from "../lib/auth-context.js";
 import { stripNullsDeep } from "../lib/sanitize.js";
 import type { AppContext } from "../types/context.js";
@@ -29,27 +42,23 @@ interface GitLabToolDefinition {
   handler: (args: ToolArgs, context: AppContext) => Promise<unknown>;
 }
 
-const optionalString = z.string().nullable().optional();
-const optionalNumber = z.number().nullable().optional();
-const optionalBoolean = z.boolean().nullable().optional();
-const optionalStringArray = z.array(z.string()).nullable().optional();
-const optionalNumberArray = z.array(z.number()).nullable().optional();
-const optionalStringOrNumber = z.union([z.string(), z.number()]).nullable().optional();
-const optionalStringOrStringArray = z
-  .union([z.string(), z.array(z.string())])
-  .nullable()
-  .optional();
-const optionalRecord = z.record(z.string(), z.unknown()).nullable().optional();
+const optionalString = nullableOptional(z.string());
+const optionalNumber = nullableOptional(z.number());
+const optionalBoolean = nullableOptional(z.boolean());
+const optionalStringArray = nullableOptional(z.array(z.string()));
+const optionalNumberArray = nullableOptional(z.array(z.number()));
+const optionalStringOrNumber = nullableOptional(z.union([z.string(), z.number()]));
+const optionalStringOrStringArray = nullableOptional(z.union([z.string(), z.array(z.string())]));
+const optionalRecord = nullableOptional(z.record(z.string(), z.unknown()));
 const pipelineInputValueSchema = z.union([
   z.string(),
   z.number(),
   z.boolean(),
   z.array(z.union([z.string(), z.number(), z.boolean()]))
 ]);
-const optionalPipelineInputsRecord = z
-  .record(z.string(), pipelineInputValueSchema)
-  .nullable()
-  .optional();
+const optionalPipelineInputsRecord = nullableOptional(
+  z.record(z.string(), pipelineInputValueSchema)
+);
 
 const paginationShape = {
   page: optionalNumber,
@@ -141,7 +150,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get project details by ID or path.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional()
+        project_id: optionalProjectIdSchema
       },
       handler: async (args, context) => {
         const projectId = resolveProjectId(args, context, true);
@@ -178,13 +187,13 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a new GitLab project/repository.",
       mutating: true,
       inputSchema: {
-        name: z.string().min(1),
+        name: displayNameSchema,
         description: optionalString,
         visibility: z.enum(["private", "internal", "public"]).optional(),
         initialize_with_readme: optionalBoolean,
         path: optionalString,
-        namespace_id: optionalString,
-        default_branch: optionalString
+        namespace_id: optionalProjectIdSchema,
+        default_branch: optionalRefLikeSchema
       },
       handler: async (args, context) =>
         context.gitlab.createRepository({
@@ -207,7 +216,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List members of a project.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         query: optionalString,
         user_ids: optionalNumberArray,
         skip_users: optionalNumberArray,
@@ -299,9 +308,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Search repository code blobs in a specific project.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         search: z.string().min(1),
-        ref: optionalString,
+        ref: optionalRefLikeSchema,
         ...paginationShape
       },
       handler: async (args, context) =>
@@ -317,9 +326,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List files and directories in a repository tree.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         path: optionalString,
-        ref: optionalString,
+        ref: optionalRefLikeSchema,
         recursive: optionalBoolean,
         ...paginationShape
       },
@@ -336,9 +345,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get a file in repository by path and ref.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         file_path: z.string().min(1),
-        ref: optionalString
+        ref: optionalRefLikeSchema
       },
       handler: async (args, context) => {
         const projectId = resolveProjectId(args, context, true);
@@ -358,9 +367,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create or update one file in repository.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         file_path: z.string().min(1),
-        branch: z.string().min(1),
+        branch: refLikeSchema,
         content: z.string(),
         commit_message: z.string().min(1),
         previous_path: optionalString,
@@ -394,8 +403,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a commit with multiple file actions.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
-        branch: z.string().min(1),
+        project_id: optionalProjectIdSchema,
+        branch: refLikeSchema,
         commit_message: z.string().min(1),
         actions: z
           .array(
@@ -463,9 +472,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a new branch from an existing ref.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
-        branch: z.string().min(1),
-        ref: optionalString
+        project_id: optionalProjectIdSchema,
+        branch: refLikeSchema,
+        ref: optionalRefLikeSchema
       },
       handler: async (args, context) => {
         const projectId = resolveProjectId(args, context, true);
@@ -490,9 +499,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Compare two branches/refs and return diffs.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
-        from: z.string().min(1),
-        to: z.string().min(1),
+        project_id: optionalProjectIdSchema,
+        from: refLikeSchema,
+        to: refLikeSchema,
         straight: optionalBoolean,
         excluded_file_patterns: optionalStringArray
       },
@@ -518,8 +527,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List commits in a project.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
-        ref_name: optionalString,
+        project_id: optionalProjectIdSchema,
+        ref_name: optionalRefLikeSchema,
         since: optionalString,
         until: optionalString,
         path: optionalString,
@@ -544,7 +553,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get one commit by SHA.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         sha: z.string().min(1),
         stats: optionalBoolean
       },
@@ -561,7 +570,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get diff for one commit.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         sha: z.string().min(1),
         full_diff: optionalBoolean,
         ...paginationShape
@@ -579,7 +588,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List merge requests for a project.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         assignee_id: optionalStringOrNumber,
         assignee_username: optionalString,
         author_id: optionalStringOrNumber,
@@ -605,8 +614,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
           ])
           .optional(),
         sort: z.enum(["asc", "desc"]).optional(),
-        source_branch: optionalString,
-        target_branch: optionalString,
+        source_branch: optionalRefLikeSchema,
+        target_branch: optionalRefLikeSchema,
         search: optionalString,
         wip: z.enum(["yes", "no"]).optional(),
         with_labels_details: optionalBoolean,
@@ -629,9 +638,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get one merge request.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: optionalString,
-        source_branch: optionalString
+        source_branch: optionalRefLikeSchema
       },
       handler: async (args, context) => {
         const projectId = resolveProjectId(args, context, true);
@@ -666,12 +675,12 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a merge request.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
-        source_branch: z.string().min(1),
-        target_branch: z.string().min(1),
+        project_id: optionalProjectIdSchema,
+        source_branch: refLikeSchema,
+        target_branch: refLikeSchema,
         title: z.string().min(1),
         description: optionalString,
-        target_project_id: optionalString,
+        target_project_id: optionalProjectIdSchema,
         assignee_ids: optionalNumberArray,
         reviewer_ids: optionalNumberArray,
         labels: optionalStringOrStringArray,
@@ -704,14 +713,14 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Fork an existing project to another namespace.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         namespace: optionalString,
-        namespace_id: optionalString,
+        namespace_id: optionalProjectIdSchema,
         path: optionalString,
-        name: optionalString,
+        name: optionalDisplayNameSchema,
         description: optionalString,
         visibility: z.enum(["private", "internal", "public"]).optional(),
-        default_branch: optionalString
+        default_branch: optionalRefLikeSchema
       },
       handler: async (args, context) =>
         context.gitlab.forkRepository(resolveProjectId(args, context, true), {
@@ -734,12 +743,12 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Update merge request fields.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
-        source_branch: optionalString,
+        source_branch: optionalRefLikeSchema,
         title: optionalString,
         description: optionalString,
-        target_branch: optionalString,
+        target_branch: optionalRefLikeSchema,
         assignee_ids: optionalNumberArray,
         reviewer_ids: optionalNumberArray,
         reviewers: optionalStringArray,
@@ -780,9 +789,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Merge an existing merge request.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: optionalString,
-        source_branch: optionalString,
+        source_branch: optionalRefLikeSchema,
         auto_merge: optionalBoolean,
         merge_when_pipeline_succeeds: optionalBoolean,
         merge_commit_message: optionalString,
@@ -827,7 +836,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get MR diffs with changed files.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         view: z.enum(["inline", "parallel"]).optional(),
         excluded_file_patterns: optionalStringArray
@@ -845,7 +854,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List detailed MR diffs (versions/changes view).",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         page: optionalNumber,
         per_page: optionalNumber,
@@ -900,7 +909,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List MR diff versions.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -915,7 +924,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get one MR diff version.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         version_id: z.string().min(1),
         unidiff: optionalBoolean
@@ -934,7 +943,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Approve a merge request.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         sha: optionalString,
         approval_password: optionalString
@@ -952,7 +961,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Remove current user approval from MR.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -967,7 +976,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get approval state for MR.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -982,7 +991,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get conflict details for MR.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -997,7 +1006,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List MR discussions.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         ...paginationShape
       },
@@ -1014,9 +1023,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a new MR discussion thread (supports diff positions).",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
-        body: z.string().min(1),
+        body: bodySchema,
         position: optionalRecord,
         created_at: optionalString
       },
@@ -1037,7 +1046,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Backward-compatible alias of gitlab_list_merge_request_discussions.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         ...paginationShape
       },
@@ -1054,10 +1063,10 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Add note to existing MR discussion thread.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         discussion_id: z.string().min(1),
-        body: z.string().min(1),
+        body: bodySchema,
         created_at: optionalString
       },
       handler: async (args, context) =>
@@ -1077,11 +1086,11 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Update note body/resolved state in MR discussion.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         discussion_id: z.string().min(1),
         note_id: z.string().min(1),
-        body: optionalString,
+        body: optionalBodySchema,
         resolved: optionalBoolean
       },
       handler: async (args, context) => {
@@ -1114,7 +1123,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Delete note from MR discussion thread.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         discussion_id: z.string().min(1),
         note_id: z.string().min(1)
@@ -1133,7 +1142,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Resolve/unresolve an MR discussion note.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         discussion_id: z.string().min(1),
         note_id: z.string().min(1),
@@ -1154,7 +1163,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List top-level notes for an MR.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         sort: optionalString,
         order_by: optionalString,
@@ -1173,7 +1182,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Backward-compatible alias of gitlab_list_merge_request_notes.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         sort: optionalString,
         order_by: optionalString,
@@ -1192,7 +1201,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get a single merge-request draft note.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         draft_note_id: z.string().min(1)
       },
@@ -1209,7 +1218,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List draft notes on a merge request.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -1224,9 +1233,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a merge-request draft note.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
-        body: z.string().min(1),
+        body: bodySchema,
         position: optionalRecord,
         resolve_discussion: optionalBoolean
       },
@@ -1247,10 +1256,10 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Update a merge-request draft note.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         draft_note_id: z.string().min(1),
-        body: optionalString,
+        body: optionalBodySchema,
         position: optionalRecord,
         resolve_discussion: optionalBoolean
       },
@@ -1281,7 +1290,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Delete a merge-request draft note.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         draft_note_id: z.string().min(1)
       },
@@ -1298,7 +1307,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Publish one merge-request draft note.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         draft_note_id: z.string().min(1)
       },
@@ -1315,7 +1324,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Publish all merge-request draft notes.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -1330,7 +1339,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get a single MR note.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         note_id: z.string().min(1)
       },
@@ -1347,9 +1356,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a top-level MR note.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
-        body: z.string().min(1)
+        body: bodySchema
       },
       handler: async (args, context) =>
         context.gitlab.createMergeRequestNote(
@@ -1364,10 +1373,10 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a note on an issue or merge request.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         noteable_type: z.enum(["issue", "merge_request"]),
         noteable_iid: z.string().min(1),
-        body: z.string().min(1)
+        body: bodySchema
       },
       handler: async (args, context) =>
         context.gitlab.createNote(
@@ -1383,10 +1392,10 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Update MR note body.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         note_id: z.string().min(1),
-        body: z.string().min(1)
+        body: bodySchema
       },
       handler: async (args, context) =>
         context.gitlab.updateMergeRequestNote(
@@ -1402,7 +1411,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Delete an MR note.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         merge_request_iid: z.string().min(1),
         note_id: z.string().min(1)
       },
@@ -1419,7 +1428,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List issues in project.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         assignee_id: optionalStringOrNumber,
         assignee_username: optionalStringArray,
         author_id: optionalStringOrNumber,
@@ -1457,7 +1466,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List issues assigned to the current authenticated user.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         state: z.enum(["opened", "closed", "all"]).optional(),
         labels: optionalStringOrStringArray,
         milestone: optionalString,
@@ -1482,7 +1491,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get issue by IID.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -1494,7 +1503,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a new issue.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         title: z.string().min(1),
         description: optionalString,
         labels: optionalStringOrStringArray,
@@ -1522,7 +1531,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Update issue fields.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
         title: optionalString,
         description: optionalString,
@@ -1558,7 +1567,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Delete an issue.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -1573,7 +1582,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List issue discussions.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
         ...paginationShape
       },
@@ -1590,10 +1599,10 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create issue comment (top-level or discussion note).",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
         discussion_id: optionalString,
-        body: z.string().min(1),
+        body: bodySchema,
         created_at: optionalString
       },
       handler: async (args, context) =>
@@ -1613,11 +1622,11 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Update an issue discussion note body or resolved state.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
         discussion_id: z.string().min(1),
         note_id: z.string().min(1),
-        body: optionalString,
+        body: optionalBodySchema,
         resolved: optionalBoolean
       },
       handler: async (args, context) => {
@@ -1647,7 +1656,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List related issue links for an issue.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -1662,7 +1671,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get a single issue link by ID.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
         issue_link_id: z.string().min(1)
       },
@@ -1679,9 +1688,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a relation between two issues.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
-        target_project_id: z.string().min(1),
+        target_project_id: projectIdSchema,
         target_issue_iid: z.string().min(1),
         link_type: z.enum(["relates_to", "blocks", "is_blocked_by"]).optional()
       },
@@ -1706,7 +1715,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Delete a relation between issues.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         issue_iid: z.string().min(1),
         issue_link_id: z.string().min(1)
       },
@@ -1724,7 +1733,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "wiki",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         with_content: optionalBoolean,
         ...paginationShape
       },
@@ -1740,8 +1749,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "wiki",
       inputSchema: {
-        project_id: z.string().optional(),
-        slug: z.string().min(1),
+        project_id: optionalProjectIdSchema,
+        slug: slugSchema,
         version: optionalString
       },
       handler: async (args, context) =>
@@ -1756,7 +1765,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "wiki",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         title: z.string().min(1),
         content: z.string().min(1),
         format: optionalString
@@ -1780,8 +1789,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "wiki",
       inputSchema: {
-        project_id: z.string().optional(),
-        slug: z.string().min(1),
+        project_id: optionalProjectIdSchema,
+        slug: slugSchema,
         content: z.string().min(1),
         title: optionalString,
         format: optionalString
@@ -1809,8 +1818,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "wiki",
       inputSchema: {
-        project_id: z.string().optional(),
-        slug: z.string().min(1)
+        project_id: optionalProjectIdSchema,
+        slug: slugSchema
       },
       handler: async (args, context) =>
         context.gitlab.deleteWikiPage(
@@ -1825,7 +1834,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         scope: z.enum(["running", "pending", "finished", "branches", "tags"]).optional(),
         status: z
           .enum([
@@ -1842,7 +1851,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
             "scheduled"
           ])
           .optional(),
-        ref: optionalString,
+        ref: optionalRefLikeSchema,
         sha: optionalString,
         yaml_errors: optionalBoolean,
         username: optionalString,
@@ -1865,7 +1874,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         pipeline_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -1881,9 +1890,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         environment: optionalString,
-        ref: optionalString,
+        ref: optionalRefLikeSchema,
         sha: optionalString,
         status: optionalString,
         updated_after: optionalString,
@@ -1906,7 +1915,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         deployment_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -1922,8 +1931,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
-        name: optionalString,
+        project_id: optionalProjectIdSchema,
+        name: optionalDisplayNameSchema,
         search: optionalString,
         states: z.enum(["available", "stopped"]).optional(),
         ...paginationShape
@@ -1940,7 +1949,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         environment_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -1956,7 +1965,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         pipeline_id: z.string().min(1),
         scope: z
           .enum([
@@ -1987,7 +1996,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         pipeline_id: z.string().min(1),
         scope: z
           .enum([
@@ -2021,7 +2030,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         job_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2037,7 +2046,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         job_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2053,7 +2062,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         job_id: z.string().min(1),
         path: optionalString,
         recursive: optionalBoolean
@@ -2072,7 +2081,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         job_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2089,7 +2098,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       requiresFeature: "pipeline",
       requiresLocalFileTools: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         job_id: z.string().min(1),
         local_path: optionalString
       },
@@ -2108,7 +2117,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         job_id: z.string().min(1),
         artifact_path: z.string().min(1)
       },
@@ -2127,7 +2136,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       requiresFeature: "pipeline",
       requiresLocalFileTools: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         job_id: z.string().min(1),
         artifact_path: z.string().min(1),
         local_path: optionalString
@@ -2147,8 +2156,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
-        ref: z.string().min(1),
+        project_id: optionalProjectIdSchema,
+        ref: refLikeSchema,
         inputs: optionalPipelineInputsRecord,
         variables: z
           .array(
@@ -2180,7 +2189,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         pipeline_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2196,7 +2205,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         pipeline_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2212,7 +2221,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         job_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2228,7 +2237,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         job_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2244,7 +2253,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "pipeline",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         job_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2260,7 +2269,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "milestone",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         iids: optionalNumberArray,
         state: optionalString,
         title: optionalString,
@@ -2282,7 +2291,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "milestone",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         milestone_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2298,7 +2307,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "milestone",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         title: z.string().min(1),
         description: optionalString,
         due_date: optionalString,
@@ -2319,7 +2328,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "milestone",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         milestone_id: z.string().min(1),
         title: optionalString,
         description: optionalString,
@@ -2341,7 +2350,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "milestone",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         milestone_id: z.string().min(1),
         title: optionalString,
         description: optionalString,
@@ -2363,7 +2372,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "milestone",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         milestone_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2379,7 +2388,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "milestone",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         milestone_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2395,7 +2404,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "milestone",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         milestone_id: z.string().min(1),
         ...paginationShape
       },
@@ -2413,7 +2422,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "milestone",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         milestone_id: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2429,7 +2438,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "milestone",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         milestone_id: z.string().min(1),
         ...paginationShape
       },
@@ -2447,7 +2456,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "release",
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         order_by: z.enum(["released_at", "created_at"]).optional(),
         sort: z.enum(["asc", "desc"]).optional(),
         include_html_description: optionalBoolean,
@@ -2465,8 +2474,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "release",
       inputSchema: {
-        project_id: z.string().optional(),
-        tag_name: z.string().min(1),
+        project_id: optionalProjectIdSchema,
+        tag_name: refLikeSchema,
         include_html_description: optionalBoolean
       },
       handler: async (args, context) =>
@@ -2483,12 +2492,12 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "release",
       inputSchema: {
-        project_id: z.string().optional(),
-        name: optionalString,
-        tag_name: z.string().min(1),
+        project_id: optionalProjectIdSchema,
+        name: optionalDisplayNameSchema,
+        tag_name: refLikeSchema,
         tag_message: optionalString,
         description: optionalString,
-        ref: optionalString,
+        ref: optionalRefLikeSchema,
         released_at: optionalString,
         milestones: optionalStringArray,
         assets: optionalRecord
@@ -2506,9 +2515,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "release",
       inputSchema: {
-        project_id: z.string().optional(),
-        tag_name: z.string().min(1),
-        name: optionalString,
+        project_id: optionalProjectIdSchema,
+        tag_name: refLikeSchema,
+        name: optionalDisplayNameSchema,
         description: optionalString,
         released_at: optionalString,
         milestones: optionalStringArray,
@@ -2528,8 +2537,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "release",
       inputSchema: {
-        project_id: z.string().optional(),
-        tag_name: z.string().min(1)
+        project_id: optionalProjectIdSchema,
+        tag_name: refLikeSchema
       },
       handler: async (args, context) =>
         context.gitlab.deleteRelease(
@@ -2544,8 +2553,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: true,
       requiresFeature: "release",
       inputSchema: {
-        project_id: z.string().optional(),
-        tag_name: z.string().min(1)
+        project_id: optionalProjectIdSchema,
+        tag_name: refLikeSchema
       },
       handler: async (args, context) =>
         context.gitlab.createReleaseEvidence(
@@ -2560,8 +2569,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       mutating: false,
       requiresFeature: "release",
       inputSchema: {
-        project_id: z.string().optional(),
-        tag_name: z.string().min(1),
+        project_id: optionalProjectIdSchema,
+        tag_name: refLikeSchema,
         direct_asset_path: z.string().min(1)
       },
       handler: async (args, context) =>
@@ -2577,7 +2586,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List project labels.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         with_counts: optionalBoolean,
         include_ancestor_groups: optionalBoolean,
         search: optionalString,
@@ -2594,8 +2603,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get one label by ID.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
-        label_id: z.string().min(1),
+        project_id: optionalProjectIdSchema,
+        label_id: displayNameSchema,
         include_ancestor_groups: optionalBoolean
       },
       handler: async (args, context) =>
@@ -2613,8 +2622,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Create a label.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
-        name: z.string().min(1),
+        project_id: optionalProjectIdSchema,
+        name: displayNameSchema,
         color: z.string().min(1),
         description: optionalString,
         priority: optionalNumber
@@ -2631,10 +2640,10 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Update a label.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
-        name: optionalString,
-        label_id: optionalString,
-        new_name: optionalString,
+        project_id: optionalProjectIdSchema,
+        name: optionalDisplayNameSchema,
+        label_id: optionalDisplayNameSchema,
+        new_name: optionalDisplayNameSchema,
         color: optionalString,
         description: optionalString,
         priority: optionalNumber
@@ -2657,9 +2666,9 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Delete a label by name.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
-        name: optionalString,
-        label_id: optionalString
+        project_id: optionalProjectIdSchema,
+        name: optionalDisplayNameSchema,
+        label_id: optionalDisplayNameSchema
       },
       handler: async (args, context) => {
         const labelName = getOptionalString(args, "name") ?? getOptionalString(args, "label_id");
@@ -2687,8 +2696,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Get namespace by ID or path.",
       mutating: false,
       inputSchema: {
-        namespace_id_or_path: optionalString,
-        namespace_id: optionalString
+        namespace_id_or_path: optionalProjectIdSchema,
+        namespace_id: optionalProjectIdSchema
       },
       handler: async (args, context) => {
         const namespaceId =
@@ -2748,7 +2757,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "List events for a specific project.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         action: optionalString,
         target_type: optionalString,
         before: optionalString,
@@ -2767,7 +2776,7 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Upload markdown file/attachment to project.",
       mutating: true,
       inputSchema: {
-        project_id: z.string().optional(),
+        project_id: optionalProjectIdSchema,
         content: optionalString,
         filename: z.string().default("upload.md"),
         file_path: optionalString
@@ -2793,8 +2802,8 @@ function getGitLabToolDefinitions(): GitLabToolDefinition[] {
       description: "Download attachment by URL/path and return base64.",
       mutating: false,
       inputSchema: {
-        project_id: z.string().optional(),
-        url_or_path: optionalString,
+        project_id: optionalProjectIdSchema,
+        url_or_path: optionalUrlOrPathSchema,
         secret: optionalString,
         filename: optionalString
       },

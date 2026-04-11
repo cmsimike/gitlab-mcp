@@ -1,10 +1,11 @@
 import picomatch from "picomatch";
 import { z } from "zod";
 
+import { optionalProjectIdSchema } from "../lib/tool-schema.js";
 import type { AppContext } from "../types/context.js";
 
 export const mergeRequestCodeContextSchema = {
-  project_id: z.string().optional(),
+  project_id: optionalProjectIdSchema,
   merge_request_iid: z.string().min(1),
   include_paths: z.array(z.string()).optional(),
   exclude_paths: z.array(z.string()).optional(),
